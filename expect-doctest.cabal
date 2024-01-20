@@ -1,0 +1,54 @@
+cabal-version:      3.0
+name:               expect-doctest
+version:            0.1
+
+synopsis:           test documentation containing interactive command line transcripts
+
+description:        a tool to write tests by writing interactive command line
+                    transcripts, and to check documentation containing
+                    interactive command line transcripts matches the
+                    output when running those commands. Uses pexpect
+                    to interact with processes, which is based on
+                    expect
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Jake Wheat
+maintainer:         jakewheat@tutanota.com
+-- copyright:
+build-type:         Simple
+extra-doc-files:    
+-- extra-source-files:
+
+common commonstuff
+    ghc-options: -Wall
+    default-language: Haskell2010
+
+library
+    import:           commonstuff
+    exposed-modules:  Pexpect
+    -- other-modules:
+    hs-source-dirs:   lib
+    build-depends:    base ^>=4.19.0.0,
+                      python-wrapper,
+                      text
+
+executable expect-doctest
+    import:           commonstuff
+    main-is:          Main.hs
+    -- other-modules:
+    build-depends:    expect-doctest
+    hs-source-dirs:   app
+    build-depends:    base ^>=4.19.0.0,
+                      python-wrapper,
+                      text
+
+test-suite expect-doctest-test
+    import:           commonstuff
+    -- Modules included in this executable, other than Main.
+    -- other-modules:
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    build-depends:    base ^>=4.19.0.0,
+                      expect-doctest,
+                      raw-strings-qq,

@@ -1,0 +1,14 @@
+
+This tool serves two purposes:
+
+Direct testing:
+
+Write tests for the output of running command line programs, and for
+the output of interactive sessions with repl style or similar command
+line programms.
+
+Document based testing:
+
+Test transcripts of running command line programs, including
+interactive ones, in documentation - so you can check your
+documentation is correct.
