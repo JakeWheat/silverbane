@@ -1,4 +1,16 @@
+
 module Main (main) where
 
+import PexpectTest (initPexpectTest, pexpectTest)
+
+import ParseTest (parseTests)
+
+import Test.Hspec (hspec)
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented."
+main = do
+    initPexpectTest
+    hspec $ do
+        pexpectTest
+        parseTests
+    

@@ -26,11 +26,13 @@ common commonstuff
 library
     import:           commonstuff
     exposed-modules:  Pexpect
+                      Parse
     -- other-modules:
     hs-source-dirs:   lib
     build-depends:    base ^>=4.19.0.0,
                       python-wrapper,
-                      text
+                      text,
+                      megaparsec,
 
 executable expect-doctest
     import:           commonstuff
@@ -40,15 +42,22 @@ executable expect-doctest
     hs-source-dirs:   app
     build-depends:    base ^>=4.19.0.0,
                       python-wrapper,
-                      text
+                      text,
 
 test-suite expect-doctest-test
     import:           commonstuff
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules:    PexpectTest
+                      ParseTest
+                      TestUtils
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Main.hs
     build-depends:    base ^>=4.19.0.0,
                       expect-doctest,
                       raw-strings-qq,
+                      hspec,
+                      mtl,
+                      text,
+                      megaparsec,
+                      hspec-megaparsec,

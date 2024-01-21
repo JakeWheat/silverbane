@@ -11,14 +11,6 @@ import Data.Text.IO (putStrLn)
 
 import qualified Pexpect as P
 
-exchange :: P.Pexpect -> Text -> Text -> IO Text
-exchange p prompt sl = do
-    P.sendline p sl
-    rep <- P.expect p prompt
-    pure $ if sl `T.isPrefixOf` rep
-        then T.drop (T.length sl) rep
-        else rep
-
 main :: IO ()
 main = do
     P.initPexpect
@@ -28,13 +20,19 @@ main = do
     let prompt = "ghci> "
     it <- P.expect h prompt
     putStrLn it
-    let ls = ["1 + 2", "putStrLn \"hello\""]
+    let ls = ["1 + 2", "putStrLn \"hello\\nstuff\""]
     flip mapM_ ls $ \l -> do
         --P.sendline h l
-        rep <- exchange h prompt l
+        rep <- P.exchange h prompt l
         putStrLn $ "Send: " <> l
         --ret <- P.expect h prompt
-        putStrLn $ "reply: " <> rep
+        putStrLn $ "reply: " <> T.strip rep
+
+        --let str = T.unpack rep
+        --    showIt n c = Pr.putStrLn $ Pr.show n ++ " ---- " ++ " " ++ Pr.show (ord c) ++ " ----\n\n"
+        --zipWithM_ showIt [(0::Int)..] str
+        --flip mapM_ str $ \c -> 
+
     (a,b) <- P.close h
     putStrLn $ "exit: " <> show (a,b)
 
