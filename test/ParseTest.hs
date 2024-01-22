@@ -11,7 +11,7 @@ import Test.Hspec
     )
 
 import Test.Hspec.Megaparsec (shouldParse)
-import           Text.Megaparsec (parse, eof)
+import           Text.Megaparsec (eof)
 
 import qualified Text.RawString.QQ as R
 import Parse as P
@@ -36,7 +36,7 @@ parseTests = describe "parse" $ do
 makeErrorHeaderTest :: Text -> Text -> SpecWith ()
 makeErrorHeaderTest input e = 
     it ("header error: " <> quickShow input)
-        $ parse (header <* eof) "" input
+        $ myRunParse (header <* eof) "" input
           `shouldFailContains` e
 
 -- probably needs some more work to disambiguate test names better
@@ -83,12 +83,12 @@ et-filter="" et-to=""
 
 makeValidatedHeaderTest :: Text -> ValidatedHeader -> SpecWith ()
 makeValidatedHeaderTest input tgt = 
-    it ("validated header: " <> quickShow input) $ parse (header <* eof) "" input `shouldParse` Just tgt
+    it ("validated header: " <> quickShow input) $ myRunParse (header <* eof) "" input `shouldParse` Just tgt
 
 testOKHeader :: SpecWith ()
 testOKHeader =
     it ("OK validated header") $
-    parse (header <* eof) "" "~~~~{a=b c d}"
+    myRunParse (header <* eof) "" "~~~~{a=b c d}"
        `shouldParse` Nothing
 
 validatedHeaders :: [(Text, ValidatedHeader)]
@@ -99,6 +99,8 @@ validatedHeaders =
     ,("~~~~{et-run}", VHRunInline)
     ,("~~~~{et-session='ghci' et-prompt='ghci> '}"
      ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing []))
+    ,("~~~~{et-session et-prompt='ghci> '}"
+     ,VHSession (SessionOptions Nothing "ghci> " Nothing []))
      -- todo: inline
     ,("~~~~{et-continue}", VHContinue)
 
@@ -111,7 +113,7 @@ validatedHeaders =
 
 makeBodyTest :: Text -> Text -> [SessionLine] -> SpecWith ()
 makeBodyTest prompt input tgt = 
-    it ("body: " <> quickShow input) $ parse (sessionBody prompt <* eof) "" input `shouldParse` tgt
+    it ("body: " <> quickShow input) $ myRunParse (sessionBody prompt <* eof) "" input `shouldParse` tgt
 
 bodies :: [(Text, Text, [SessionLine])]
 bodies =
@@ -143,7 +145,7 @@ ghci> 1 + 2
 
 makeInlineBodyTest :: Text -> Text -> (Text, [SessionLine]) -> SpecWith ()
 makeInlineBodyTest prompt input tgt = 
-    it ("body: " <> quickShow input) $ parse (inlineCmdSessionBody prompt <* eof) "" input `shouldParse` tgt
+    it ("body: " <> quickShow input) $ myRunParse (inlineCmdSessionBody prompt <* eof) "" input `shouldParse` tgt
 
 inlineBodies :: [(Text, Text, Text, [SessionLine])]
 inlineBodies =
@@ -160,7 +162,7 @@ ghci>
 
 makeFileTest :: Text -> [FileChunk] -> SpecWith ()
 makeFileTest input tgt = 
-    it ("file: " <> quickShow input) $ parse (file <* eof) "" input `shouldParse` tgt
+    it ("file: " <> quickShow input) $ myRunParse (file <* eof) "" input `shouldParse` tgt
 
 simpleFiles :: [(Text, [FileChunk])]
 simpleFiles =
@@ -225,5 +227,95 @@ postamble text
 
 
 -- example of each of the other blocks
-    
+-- file with inline filename
+    ,([R.r|
+
+~~~~{et-file-prefix='--'}
+-- File myfile
+stuff
+~~~~
+
+~~~~{et-file-prefix='--'}
+
+-- File myfile1
+stuff1
+~~~~
+
+~~~~{et-file-prefix='--'}
+
+-- myfile2
+stuff2
+~~~~
+
+
+|], [FcFile (EtFile 3 "myfile" "stuff\n")
+    ,FcFile (EtFile 8 "myfile1" "stuff1\n")
+    ,FcFile (EtFile 14 "myfile2" "stuff2\n")
+    ])
+
+    ,([R.r|
+
+~~~~{et-run='echo stuff'}
+stuff
+~~~~
+|], [FcRun (EtRun 3 "echo stuff" "stuff\n")])
+
+    ,([R.r|
+~~~~{et-run}
+$ echo stuff
+stuff
+~~~~
+|], [FcRun (EtRun 2 "echo stuff" "stuff\n")])
+
+    ,([R.r|
+~~~~{et-session='ghci' et-prompt='ghci> '}
+stuff
+ghci> 1 + 2
+3
+~~~~
+
+~~~~{et-continue}
+ghci> 3 + 4
+7
+~~~~
+
+~~~~{et-session et-prompt=">>> "}
+$ python3
+>>> 1 + 2
+3
+ghci> 
+~~~~
+
+~~~~{et-continue}
+>>> 3 + 4
+7
+ghci> 
+~~~~
+|], [FcSession $ EtSession 2 "ghci" "ghci> " Nothing []
+     [Reply "stuff\n"
+     ,Prompt "1 + 2\n"
+     ,Reply "3\n"]
+    ,FcContinue $ EtContinue 8
+     [Prompt "3 + 4\n"
+     ,Reply "7\n"]
+    ,FcSession $ EtSession 13 "python3" ">>> " Nothing []
+     [Prompt "1 + 2\n"
+     ,Reply "3\nghci> \n"]
+    ,FcContinue $ EtContinue 20
+     [Prompt "3 + 4\n"
+     ,Reply "7\nghci> \n"]
+          ])
+
+    ,([R.r|
+
+~~~~{et-continue}
+>>> 3 + 4
+7
+ghci> 
+~~~~
+|], [])
     ]
+
+
+-- errors:
+-- continue without session

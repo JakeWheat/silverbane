@@ -179,6 +179,7 @@ checked later.
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE RecordWildCards #-}
 module Parse where
 
 import           Data.Char                       (isSpace)
@@ -198,18 +199,18 @@ import           Text.Megaparsec                 (ParseErrorBundle, ParsecT,
                                                   setErrorOffset,getOffset, region,
                                                   failure, lookAhead, manyTill,
                                                   getSourcePos, sourceLine,unPos,
-                                                  
+                                                  runParserT,
                                                     
                                                  )
 import           Text.Megaparsec.Char            (char)
 import Data.Maybe (catMaybes)
+import Control.Monad.State
+    (State
+    ,evalState
+    ,put
+    ,get
+    )
 --import qualified Data.Set as Set
-
-type Parser = ParsecT Void Text Identity
-type MyParseError = ParseErrorBundle Text Void
-
-prettyError :: MyParseError -> Text
-prettyError = T.pack . errorBundlePretty
 
 data FileChunk
     = FcFile EtFile
@@ -238,12 +239,17 @@ data EtRun
 data EtSession
     = EtSession
     {etStartLine :: Int
-    ,etCmd :: Either Text Text -- left is attribute, right is explicit
+    ,etCmd :: Text
     ,etPrompt :: Text
-    ,etNoInitialText :: Bool
+    ,etInitialText :: Maybe Bool
     ,etFilters :: [(Text,Text)]
     ,etSessionLines :: [SessionLine]
     }
+      deriving (Eq,Show)
+
+data SessionLine
+    = Prompt Text
+    | Reply Text
       deriving (Eq,Show)
 
 data EtContinue
@@ -270,6 +276,18 @@ data SessionOptions
     ,soFilters :: [(Text,Text)]
     }
       deriving (Eq,Show)
+
+type MyParseError = ParseErrorBundle Text Void
+
+prettyError :: MyParseError -> Text
+prettyError = T.pack . errorBundlePretty
+
+-- the state is the prompt from the previous session
+-- using when parsing continues
+type Parser = ParsecT Void Text (State (Maybe Text))
+
+myRunParse :: Parser a -> String -> Text -> Either MyParseError a
+myRunParse p name input = evalState (runParserT p name input) Nothing
 
 
 {-
@@ -421,10 +439,10 @@ header = do
             ,attribute *> startingAttributes
             ,pure Nothing]
     vhSession = do
-        s <- namedValueAttribute "et-session"
+        s <- namedAttribute "et-session"
         p <- namedValueAttribute "et-prompt"
         -- todo: parse optional bits
-        pure $ VHSession $ SessionOptions (Just s) p Nothing []
+        pure $ VHSession $ SessionOptions s p Nothing []
     -- todo: match any recognised attribute and error
     errorAttribute = do
         o <- getOffset
@@ -497,10 +515,6 @@ followed by the prompt body syntax -> prompts and replies
 
 -}
 
-data SessionLine
-    = Prompt Text
-    | Reply Text
-      deriving (Eq,Show)
 
 -- parse a mix of prompts and replies until ~~~~, if hit eof before
 -- this, give an error
@@ -571,19 +585,68 @@ filex = choice
         Nothing -> pure Nothing
         Just (VHFile nm) -> do
             bdy <- simpleBody
-            pure $ Just $ FcFile $ EtFile o nm bdy
+            pure . Just . FcFile $ EtFile o nm bdy
+        Just (VHFilePrefix pr) -> Just . FcFile <$> fileInlineBody o pr
+        Just (VHRun cmd) -> do
+            bdy <- simpleBody
+            pure . Just . FcRun $ EtRun o cmd bdy
+        Just VHRunInline -> Just . FcRun <$> runInline o
+        Just (VHSession (SessionOptions {..})) -> do
+            put (Just soPrompt)
+            Just . FcSession <$> session o soCmdline soPrompt soInitialText soFilters
+        Just VHContinue -> do
+            mprompt <- get
+            case mprompt of
+                Nothing -> region (setErrorOffset o) (fail "continue block without preceding session block")
+                Just prompt -> Just . FcContinue <$> continue o prompt
             
+        Just x -> error $ "please implement " <> show x
             
    ,do
     void $ takeWhileP (Just "text") (/= '\n')
     void (char '\n') <|> eof
     pure Nothing]
+
+session :: Int -> (Maybe Text) -> Text -> Maybe Bool -> [(Text,Text)] -> Parser EtSession
+session ln mcmd prompt mInitialText filters = do
+    cmd <- case mcmd of
+        Just x -> pure x
+        Nothing -> do
+            void $ chunk "$ "
+            cmdx <- takeWhile1P (Just "command line") (/= '\n')
+            void $ char '\n'
+            pure cmdx
+    sl <- sessionBody prompt
+    pure $ EtSession ln cmd prompt Nothing [] sl
+
+continue :: Int -> Text -> Parser EtContinue
+continue ln prompt = do
+    sl <- sessionBody prompt
+    pure $ EtContinue ln sl
+
+
+runInline :: Int -> Parser EtRun
+runInline ln = do
+    void $ chunk "$ "
+    cmd <- takeWhile1P (Just "command line") (/= '\n')
+    void $ char '\n'
+    bdy <- simpleBody
+    pure $ EtRun ln cmd bdy
     
-    {-
-   parse a line
-    is it a et line
-    save the match so far (problem!)
-    -> dispatch to that parser
-    otherwise-> loop
-  if eof -> save what's been accumulated
--}
+    
+fileInlineBody :: Int -> Text -> Parser EtFile
+fileInlineBody ln pr = do
+    void $ many whitespaceOnlyLine
+    void $ lexeme (chunk pr)
+    fn <- choice
+          [void (lexeme (chunk "File" <|> chunk "file"))
+           *> lexeme (takeWhile1P (Just "filename") (not . isSpace))
+          ,lexeme (takeWhile1P (Just "filename") (not . isSpace))]
+    void $ char '\n'
+    bdy <- simpleBody
+    pure  $ EtFile ln fn bdy
+
+whitespaceOnlyLine :: Parser ()
+whitespaceOnlyLine = do
+    void $ optional nonnewlinewhitespace
+    void $ char '\n'

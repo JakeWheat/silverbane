@@ -33,6 +33,8 @@ library
                       python-wrapper,
                       text,
                       megaparsec,
+                      mtl,
+
 
 executable expect-doctest
     import:           commonstuff
