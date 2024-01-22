@@ -196,7 +196,7 @@ import           Text.Megaparsec                 (ParseErrorBundle, ParsecT,
                                                   optional, chunk, match, many,
                                                   (<?>), between,choice,
                                                   setErrorOffset,getOffset, region,
-                                                  failure
+                                                  failure, lookAhead, 
                                                     
                                                  )
 import           Text.Megaparsec.Char            (char)
@@ -240,14 +240,17 @@ data EtSession
     ,etCmd :: Either Text Text -- left is attribute, right is explicit
     ,etPrompt :: Text
     ,etNoInitialText :: Bool
-    ,etFilters :: [(Text,Text)]}
+    ,etFilters :: [(Text,Text)]
+    ,etSessionLines :: [SessionLine]
+    }
       deriving (Eq,Show)
 
 data EtContinue
     = EtContinue
     {etHeader :: Text
     ,etStartLine :: Int
-    ,etBody :: Text}
+    ,etSessionLines :: [SessionLine]
+    }
       deriving (Eq,Show)
 
 
@@ -390,8 +393,8 @@ attribute =
 -- returns the line including the newline at the end if there is one
 -- (this is not very efficient, but good enough for now)
 -- if matches any et- attributes, returns all the attributes parsed out as well
-parseHeader :: Parser (Text, Maybe ValidatedHeader)
-parseHeader =
+header :: Parser (Text, Maybe ValidatedHeader)
+header =
     match $ do
         void $ lexeme $ chunk "~~~~"
         vh' <- optional $ do
@@ -498,11 +501,42 @@ followed by the prompt body syntax -> prompts and replies
 
 -}
 
+data SessionLine
+    = Prompt Text
+    | Reply Text
+      deriving (Eq,Show)
+
 -- parse a mix of prompts and replies until ~~~~, if hit eof before
 -- this, give an error
-parsePromptBody :: Text -> Parser Int
-parsePromptBody _prompt = undefined
+sessionBody :: Text -> Parser [SessionLine]
+sessionBody prompt = line
+  where
+    line = endBody <|> promptLine <|> reply
+    endBody = chunk "~~~~" *> (void (char '\n') <|> eof) *> pure []
+    promptLine = do
+        p <- chunk prompt *>
+             (match $ do
+                  void $ takeWhileP (Just "prompt text") (/='\n')
+                  void $ char '\n')
+        (Prompt (fst p):) <$> line
+    anotherReplyLine = do
+        void $ takeWhileP (Just "reply text") (/='\n')
+        void $ char '\n'
+        choice
+            [lookAhead (chunk prompt) *> pure ()
+            ,lookAhead (chunk "~~~~") *> pure ()
+            ,anotherReplyLine]
+    reply = do
+        x <- match anotherReplyLine
+        (Reply (fst x):) <$> line
 
 -- parse the starting inline command, then a prompt body
-parseInlineCmdPromptBody :: Text -> Parser Int
-parseInlineCmdPromptBody _prompt = undefined
+inlineCmdSessionBody :: Text -> Parser (Text, [SessionLine])
+inlineCmdSessionBody prompt = do
+    void $ chunk "$ "
+    cmd <- match (do
+        void $ takeWhileP (Just "command text") (/= '\n')
+        void $ char '\n')
+           
+    b <- sessionBody prompt
+    pure $ (fst cmd, b)
