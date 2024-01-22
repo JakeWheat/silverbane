@@ -29,13 +29,24 @@ parseTests = describe "parse" $ do
     describe "body" $ do
         mapM_ (\(a,b,c) -> makeBodyTest a b c) bodies
         mapM_ (\(a,b,c,d) -> makeInlineBodyTest a b (c,d)) inlineBodies
-
+    describe "files" $ do
+        mapM_ (uncurry makeFileTest) simpleFiles
+       
 
 makeErrorHeaderTest :: Text -> Text -> SpecWith ()
 makeErrorHeaderTest input e = 
-    it ("header error: " <> T.unpack input)
+    it ("header error: " <> quickShow input)
         $ parse (header <* eof) "" input
           `shouldFailContains` e
+
+-- probably needs some more work to disambiguate test names better
+-- for the tests with long inputs, add an explicit name to the
+-- examples
+quickShow :: Text -> String
+quickShow t = T.unpack $ T.map replaceNewline $ T.take 40 t
+  where
+    replaceNewline '\n' = ' '
+    replaceNewline x = x
 
 errorHeaders :: [(Text, Text)]
 errorHeaders =
@@ -72,14 +83,13 @@ et-filter="" et-to=""
 
 makeValidatedHeaderTest :: Text -> ValidatedHeader -> SpecWith ()
 makeValidatedHeaderTest input tgt = 
-    it ("validated header: " <> T.unpack input) $ parse (header <* eof) "" input `shouldParse` (input,Just tgt)
+    it ("validated header: " <> quickShow input) $ parse (header <* eof) "" input `shouldParse` Just tgt
 
 testOKHeader :: SpecWith ()
 testOKHeader =
     it ("OK validated header") $
-    let input = "~~~~{a=b c d}"
-    in parse (header <* eof) "" input
-       `shouldParse` (input,Nothing)
+    parse (header <* eof) "" "~~~~{a=b c d}"
+       `shouldParse` Nothing
 
 validatedHeaders :: [(Text, ValidatedHeader)]
 validatedHeaders =
@@ -101,7 +111,7 @@ validatedHeaders =
 
 makeBodyTest :: Text -> Text -> [SessionLine] -> SpecWith ()
 makeBodyTest prompt input tgt = 
-    it ("body: " <> T.unpack input) $ parse (sessionBody prompt <* eof) "" input `shouldParse` tgt
+    it ("body: " <> quickShow input) $ parse (sessionBody prompt <* eof) "" input `shouldParse` tgt
 
 bodies :: [(Text, Text, [SessionLine])]
 bodies =
@@ -133,7 +143,7 @@ ghci> 1 + 2
 
 makeInlineBodyTest :: Text -> Text -> (Text, [SessionLine]) -> SpecWith ()
 makeInlineBodyTest prompt input tgt = 
-    it ("body: " <> T.unpack input) $ parse (inlineCmdSessionBody prompt <* eof) "" input `shouldParse` tgt
+    it ("body: " <> quickShow input) $ parse (inlineCmdSessionBody prompt <* eof) "" input `shouldParse` tgt
 
 inlineBodies :: [(Text, Text, Text, [SessionLine])]
 inlineBodies =
@@ -146,4 +156,74 @@ inlineBodies =
 ghci> 
 ~~~~|], "ghci\n", [Prompt "\n"])
 
+    ]
+
+makeFileTest :: Text -> [FileChunk] -> SpecWith ()
+makeFileTest input tgt = 
+    it ("file: " <> quickShow input) $ parse (file <* eof) "" input `shouldParse` tgt
+
+simpleFiles :: [(Text, [FileChunk])]
+simpleFiles =
+    [("", [])
+    ,("stuff", [])
+    ,("\nstuff\n", [])
+    
+    ,([R.r|~~~~{et-file=myfile}
+stuff
+stuff
+~~~~
+|], [FcFile (EtFile "~~~~{et-file=myfile}\n" 1 "myfile" [R.r|stuff
+stuff
+|])])
+    
+    ,([R.r|~~~~{et-file=myfile}
+stuff
+stuff
+~~~~|], [FcFile (EtFile "~~~~{et-file=myfile}\n" 1 "myfile" [R.r|stuff
+stuff
+|])])
+
+    ,([R.r|~~~~{et-file=myfile other-stuff}
+stuff
+stuff
+~~~~|], [FcFile (EtFile "~~~~{et-file=myfile other-stuff}\n" 1 "myfile" [R.r|stuff
+stuff
+|])])
+
+    ,([R.r|
+
+preamble text
+
+~~~~{et-file=myfile}
+stuff
+stuff
+~~~~
+
+postamble text
+
+|], [FcFile (EtFile "~~~~{et-file=myfile}\n" 5 "myfile" [R.r|stuff
+stuff
+|])])
+
+        ,([R.r|
+
+preamble text
+
+~~~~{et-file=myfile}
+block1
+~~~~
+
+~~~~{et-file=myfile2}
+block2
+~~~~
+
+postamble text
+
+|], [FcFile (EtFile "~~~~{et-file=myfile}\n" 5 "myfile" "block1\n")
+    ,FcFile (EtFile "~~~~{et-file=myfile2}\n" 9 "myfile2" "block2\n")
+    ])
+
+
+-- example of each of the other blocks
+    
     ]

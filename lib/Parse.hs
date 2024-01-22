@@ -196,10 +196,13 @@ import           Text.Megaparsec                 (ParseErrorBundle, ParsecT,
                                                   optional, chunk, match, many,
                                                   (<?>), between,choice,
                                                   setErrorOffset,getOffset, region,
-                                                  failure, lookAhead, 
+                                                  failure, lookAhead, manyTill,
+                                                  getSourcePos, sourceLine,unPos,
+                                                  
                                                     
                                                  )
 import           Text.Megaparsec.Char            (char)
+import Data.Maybe (catMaybes)
 --import qualified Data.Set as Set
 
 type Parser = ParsecT Void Text Identity
@@ -209,8 +212,7 @@ prettyError :: MyParseError -> Text
 prettyError = T.pack . errorBundlePretty
 
 data FileChunk
-    = TextChunk
-    | FcFile EtFile
+    = FcFile EtFile
     | FcRun EtRun
     | FcSession EtSession
     | FcContinue EtContinue
@@ -222,7 +224,8 @@ data EtFile
     {etHeader :: Text -- the full header line
     ,etStartLine :: Int
     ,etFilename :: Text
-    ,etBody :: Text}
+    ,etBody :: Text
+    }
       deriving (Eq,Show)
 
 data EtRun
@@ -230,7 +233,8 @@ data EtRun
     {etHeader :: Text
     ,etStartLine :: Int
     ,etCmd :: Text
-    ,etBody :: Text}
+    ,etBody :: Text
+    }
       deriving (Eq,Show)
 
 data EtSession
@@ -255,9 +259,7 @@ data EtContinue
 
 
 data ValidatedHeader
-    = Regular -- means this header doesn't contain any specific
-              -- directives for the program, it's just textchunkage
-    | VHFile Text
+    = VHFile Text
     | VHFilePrefix Text
     | VHRun Text
     | VHRunInline
@@ -393,17 +395,16 @@ attribute =
 -- returns the line including the newline at the end if there is one
 -- (this is not very efficient, but good enough for now)
 -- if matches any et- attributes, returns all the attributes parsed out as well
-header :: Parser (Text, Maybe ValidatedHeader)
-header =
-    match $ do
-        void $ lexeme $ chunk "~~~~"
-        vh' <- optional $ do
-            void $ lexeme $ char '{'
-            vh <- startingAttributes <|> pure Nothing
-            void $ lexeme $ char '}'
-            pure vh
-        void (char '\n') <|> eof
-        pure $ join vh'
+header :: Parser (Maybe ValidatedHeader)
+header = do
+    void $ lexeme $ chunk "~~~~"
+    vh' <- optional $ do
+        void $ lexeme $ char '{'
+        vh <- startingAttributes <|> pure Nothing
+        void $ lexeme $ char '}'
+        pure vh
+    void (char '\n') <|> eof
+    pure $ join vh'
   where
     startingAttributes :: Parser (Maybe ValidatedHeader)
     -- todo: this is a complete mess
@@ -540,3 +541,54 @@ inlineCmdSessionBody prompt = do
            
     b <- sessionBody prompt
     pure $ (fst cmd, b)
+
+simpleBody :: Parser Text
+simpleBody = do
+    b <- match lne
+    void $ chunk "~~~~"
+    void (char '\n') <|> eof
+    pure $ fst b
+ where
+    lne = choice
+        [do
+         lookAhead $ do       
+             void $ chunk "~~~~"
+             void (char '\n') <|> eof
+         pure ()
+        ,do
+         void $ takeWhileP (Just "text") (/='\n')
+         void (char '\n')
+         lne]
+
+
+file :: Parser [FileChunk]
+file = catMaybes <$> manyTill filex eof
+
+getSourceLine :: Parser Int
+getSourceLine = unPos . sourceLine <$> getSourcePos
+
+filex :: Parser (Maybe FileChunk)
+filex = choice
+   [do
+    o <- getSourceLine       
+    (hdr,vh) <- match header
+    case vh of
+        Nothing -> pure Nothing
+        Just (VHFile nm) -> do
+            bdy <- simpleBody
+            pure $ Just $ FcFile $ EtFile hdr o nm bdy
+            
+            
+   ,do
+    void $ takeWhileP (Just "text") (/= '\n')
+    void (char '\n') <|> eof
+    pure Nothing]
+    
+    {-
+   parse a line
+    is it a et line
+    save the match so far (problem!)
+    -> dispatch to that parser
+    otherwise-> loop
+  if eof -> save what's been accumulated
+-}
