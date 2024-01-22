@@ -172,21 +172,21 @@ simpleFiles =
 stuff
 stuff
 ~~~~
-|], [FcFile (EtFile "~~~~{et-file=myfile}\n" 1 "myfile" [R.r|stuff
+|], [FcFile (EtFile 1 "myfile" [R.r|stuff
 stuff
 |])])
     
     ,([R.r|~~~~{et-file=myfile}
 stuff
 stuff
-~~~~|], [FcFile (EtFile "~~~~{et-file=myfile}\n" 1 "myfile" [R.r|stuff
+~~~~|], [FcFile (EtFile 1 "myfile" [R.r|stuff
 stuff
 |])])
 
     ,([R.r|~~~~{et-file=myfile other-stuff}
 stuff
 stuff
-~~~~|], [FcFile (EtFile "~~~~{et-file=myfile other-stuff}\n" 1 "myfile" [R.r|stuff
+~~~~|], [FcFile (EtFile 1 "myfile" [R.r|stuff
 stuff
 |])])
 
@@ -201,7 +201,7 @@ stuff
 
 postamble text
 
-|], [FcFile (EtFile "~~~~{et-file=myfile}\n" 5 "myfile" [R.r|stuff
+|], [FcFile (EtFile 5 "myfile" [R.r|stuff
 stuff
 |])])
 
@@ -219,8 +219,8 @@ block2
 
 postamble text
 
-|], [FcFile (EtFile "~~~~{et-file=myfile}\n" 5 "myfile" "block1\n")
-    ,FcFile (EtFile "~~~~{et-file=myfile2}\n" 9 "myfile2" "block2\n")
+|], [FcFile (EtFile 5 "myfile" "block1\n")
+    ,FcFile (EtFile 9 "myfile2" "block2\n")
     ])
 
 

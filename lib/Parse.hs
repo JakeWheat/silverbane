@@ -221,8 +221,7 @@ data FileChunk
 
 data EtFile
     = EtFile
-    {etHeader :: Text -- the full header line
-    ,etStartLine :: Int
+    {etStartLine :: Int
     ,etFilename :: Text
     ,etBody :: Text
     }
@@ -230,8 +229,7 @@ data EtFile
 
 data EtRun
     = EtRun
-    {etHeader :: Text
-    ,etStartLine :: Int
+    {etStartLine :: Int
     ,etCmd :: Text
     ,etBody :: Text
     }
@@ -239,8 +237,7 @@ data EtRun
 
 data EtSession
     = EtSession
-    {etHeader :: Text
-    ,etStartLine :: Int
+    {etStartLine :: Int
     ,etCmd :: Either Text Text -- left is attribute, right is explicit
     ,etPrompt :: Text
     ,etNoInitialText :: Bool
@@ -251,12 +248,10 @@ data EtSession
 
 data EtContinue
     = EtContinue
-    {etHeader :: Text
-    ,etStartLine :: Int
+    {etStartLine :: Int
     ,etSessionLines :: [SessionLine]
     }
       deriving (Eq,Show)
-
 
 data ValidatedHeader
     = VHFile Text
@@ -571,12 +566,12 @@ filex :: Parser (Maybe FileChunk)
 filex = choice
    [do
     o <- getSourceLine       
-    (hdr,vh) <- match header
+    vh <- header
     case vh of
         Nothing -> pure Nothing
         Just (VHFile nm) -> do
             bdy <- simpleBody
-            pure $ Just $ FcFile $ EtFile hdr o nm bdy
+            pure $ Just $ FcFile $ EtFile o nm bdy
             
             
    ,do
