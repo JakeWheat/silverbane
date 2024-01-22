@@ -20,72 +20,37 @@ import TestUtils (shouldFailContains)
 
 parseTests :: SpecWith ()
 parseTests = describe "parse" $ do
-    describe "headerbits" $ mapM_ (uncurry makeValidHeaderTest) validHeaders
-    describe "headerbits errors" $ mapM_ (uncurry makeErrorHeaderTest) errorHeaders
-
-{-
-
-headerBits:
-
-regular line
-line with ~~~~, no atts
-line with ~~~~, no recognised attributes
-  do each kind of attribute
-  a
-  #a
-  .a
-  a=b
-  a='b'
-  a="b"
-
-error with missing trailing }
-error with unclosed ", '
--}
-
-makeValidHeaderTest :: Text -> (Text, Maybe ([(Text, Maybe Text)])) -> SpecWith ()
-makeValidHeaderTest input tgt = 
-    it ("header: " <> T.unpack input) $ parse (headerBits <* eof) "" input `shouldParse` tgt
+    describe "header errors" $ mapM_ (uncurry makeErrorHeaderTest) errorHeaders
+    describe "validate header" $ do
+        testOKHeader
+        mapM_ (uncurry makeValidatedHeaderTest) validatedHeaders
 
 makeErrorHeaderTest :: Text -> Text -> SpecWith ()
 makeErrorHeaderTest input e = 
     it ("header error: " <> T.unpack input)
-        $ parse (headerBits <* eof) "" input
+        $ parse (parseHeader <* eof) "" input
           `shouldFailContains` e
-
-validHeaders :: [(Text, (Text, Maybe ([(Text, Maybe Text)])))]
-validHeaders =
-    [("~~~~", ("~~~~", Nothing))
-    ,("~~~~{}", ("~~~~{}", Just []))
-    ,("~~~~{a}", ("~~~~{a}", Just [("a", Nothing)]))
-    ,("~~~~ { a } ", ("~~~~ { a } ", Just [("a", Nothing)]))
-    ,("~~~~{ a=b }", ("~~~~{ a=b }", Just [("a", Just "b")]))
-    ,("~~~~{ a='b' }", ("~~~~{ a='b' }", Just [("a", Just "b")]))
-    ,("~~~~{ a=\"b\" }", ("~~~~{ a=\"b\" }", Just [("a", Just "b")]))
-    ,("~~~~{ .sql #myclass et-f1 et-f2=stuff }"
-     ,("~~~~{ .sql #myclass et-f1 et-f2=stuff }"
-      ,Just [(".sql", Nothing)
-            ,("#myclass", Nothing)
-            ,("et-f1", Nothing)
-            ,("et-f2", Just "stuff")]))
-    ]
 
 errorHeaders :: [(Text, Text)]
 errorHeaders =
-    [("~~~~{", "expecting '}'")
-    ,("~~~~{a='", "expecting '''")
-    ,("~~~~{a=\"", "expecting '\"'")
-    ,("~~~~{{", "unexpected '{'")
-    ,("~~~~{} a", "unexpected 'a'")]
-
-
-
+    [("~~~~{\n", "unexpected")
+    ,("~~~~{a='\n", "expecting '''")
+    ,("~~~~{a=\"\n", "expecting '\"'")
+    ,("~~~~{{\n", "unexpected '{'")
+    ,("~~~~{} a\n", "unexpected 'a'")
+    
+    ,("~~~~{et-file=x et-file=x}\n", "unexpected et-file")
+    ,("~~~~{et-session=x stuff}\n", "unexpected \"stuff")
+    ,("~~~~{et-session=x}\n", "expecting \"et-prompt\"")
+    ,("~~~~{et-continue=x}\n", "attribute should not have value")
+    ]
 
 {-
 
 
 validate header:
 et-file=
-et=file-prefix=
+et-file-prefix=
 et-run=
 et-run
 et-session= et-prompt=
@@ -98,3 +63,32 @@ et-filter="" et-to=""
 + multiple
 
  -}
+
+makeValidatedHeaderTest :: Text -> ValidatedHeader -> SpecWith ()
+makeValidatedHeaderTest input tgt = 
+    it ("validated header: " <> T.unpack input) $ parse parseHeader "" input `shouldParse` (input,Just tgt)
+
+testOKHeader :: SpecWith ()
+testOKHeader =
+    it ("OK validated header") $
+    let input = "~~~~{a=b c d}"
+    in parse parseHeader "" input
+       `shouldParse` (input,Nothing)
+
+validatedHeaders :: [(Text, ValidatedHeader)]
+validatedHeaders =
+    [("~~~~{et-file=filename}", VHFile "filename")
+    ,("~~~~{et-file-prefix='--'}", VHFilePrefix "--")
+    ,("~~~~{et-run='echo stuff'}", VHRun "echo stuff")
+    ,("~~~~{et-run}", VHRunInline)
+    ,("~~~~{et-session='ghci' et-prompt='ghci> '}"
+     ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing []))
+     -- todo: inline
+    ,("~~~~{et-continue}", VHContinue)
+
+    ,("~~~~{.sql et-file=filename}", VHFile "filename")
+    ,("~~~~{.sql et-file=filename #myclass stuff}", VHFile "filename")
+    ]
+     -- todo: session options
+
+-- todo: validate header parse errors -> wrong attributes

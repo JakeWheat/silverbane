@@ -178,6 +178,7 @@ checked later.
 
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiWayIf #-}
 module Parse where
 
 import           Data.Char                       (isSpace)
@@ -187,16 +188,19 @@ import qualified Data.Text                       as T
 --import qualified Data.Text.IO                    as T
 import           Data.Void                       (Void)
 
-import           Control.Monad                   (void)
+import           Control.Monad                   (void, join)
 import           Text.Megaparsec                 (ParseErrorBundle, ParsecT,
                                                   eof, errorBundlePretty, parse,
                                                   parseTest, satisfy,
                                                   takeWhile1P, takeWhileP, try, (<|>),
                                                   optional, chunk, match, many,
-                                                  (<?>), between,
+                                                  (<?>), between,choice,
+                                                  setErrorOffset,getOffset, region,
+                                                  failure
                                                     
                                                  )
 import           Text.Megaparsec.Char            (char)
+--import qualified Data.Set as Set
 
 type Parser = ParsecT Void Text Identity
 type MyParseError = ParseErrorBundle Text Void
@@ -244,6 +248,27 @@ data EtContinue
     {etHeader :: Text
     ,etStartLine :: Int
     ,etBody :: Text}
+      deriving (Eq,Show)
+
+
+data ValidatedHeader
+    = Regular -- means this header doesn't contain any specific
+              -- directives for the program, it's just textchunkage
+    | VHFile Text
+    | VHFilePrefix Text
+    | VHRun Text
+    | VHRunInline
+    | VHSession SessionOptions
+    | VHContinue
+      deriving (Eq,Show)
+
+data SessionOptions
+    = SessionOptions
+    {soCmdline :: Maybe Text -- nothing means inline cmd
+    ,soPrompt :: Text
+    ,soInitialText :: Maybe Bool
+    ,soFilters :: [(Text,Text)]
+    }
       deriving (Eq,Show)
 
 
@@ -365,29 +390,86 @@ attribute =
 -- returns the line including the newline at the end if there is one
 -- (this is not very efficient, but good enough for now)
 -- if matches any et- attributes, returns all the attributes parsed out as well
-headerBits :: Parser (Text, Maybe ([(Text, Maybe Text)]))
-headerBits = do
-    -- how do you save the whole line, and parse it too
-    -- just return "" for now, come back to this
-    (l, ts) <- match $ do
+parseHeader :: Parser (Text, Maybe ValidatedHeader)
+parseHeader =
+    match $ do
         void $ lexeme $ chunk "~~~~"
-        pl <- optional $ do
+        vh' <- optional $ do
             void $ lexeme $ char '{'
-            -- parse attributes
-            as <- many attribute
+            vh <- startingAttributes <|> pure Nothing
             void $ lexeme $ char '}'
-            pure as
+            pure vh
         void (char '\n') <|> eof
-        pure pl
-    pure (l, ts)
-
--- takes a set of attributes, and returns the info for a matching chunk
--- it gives an error if there's a validation issue, doesn't consume any
--- text
-
-validateHeader :: [(Text, Maybe Text)] -> Parser Int
-validateHeader = undefined
-
+        pure $ join vh'
+  where
+    startingAttributes :: Parser (Maybe ValidatedHeader)
+    -- todo: this is a complete mess
+    startingAttributes =
+        choice
+            [do
+             vh <- choice
+                  [VHFilePrefix <$> namedValueAttribute "et-file-prefix"
+                  ,VHFile <$> namedValueAttribute "et-file"
+                  ,do
+                   x <- namedAttribute "et-run"
+                   case x of
+                       Nothing -> pure VHRunInline
+                       Just v -> pure $ VHRun v
+                  ,vhSession
+                  ,VHContinue <$ noValueAttribute "et-continue"]
+             endingAttributes (Just vh)
+            ,errorAttribute
+            ,attribute *> startingAttributes
+            ,pure Nothing]
+    vhSession = do
+        s <- namedValueAttribute "et-session"
+        p <- namedValueAttribute "et-prompt"
+        -- todo: parse optional bits
+        pure $ VHSession $ SessionOptions (Just s) p Nothing []
+    -- todo: match any recognised attribute and error
+    errorAttribute = do
+        o <- getOffset
+        choice $
+            map (\x -> namedAttribute x *>
+                    region (setErrorOffset o) (fail ("unexpected " <> T.unpack x)))
+            ["et-file"
+            ,"et-file-prefix"
+            ,"et-run"
+            ,"et-continue"
+            ,"et-session"
+            ,"et-prompt"
+            ,"et-no-initial-text"
+            ,"et-initial-text"
+            ,"et-filter"
+            ,"et-to"
+            ]
+    
+    namedAttribute :: Text -> Parser (Maybe Text)
+    namedAttribute nm =
+        lexeme (chunk nm *> optional (char '=' *> attributeValue))
+    namedValueAttribute :: Text -> Parser Text
+    namedValueAttribute nm = do
+        lexeme (chunk nm *> char '=' *> attributeValue)
+    noValueAttribute :: Text -> Parser ()
+    noValueAttribute nm =
+        lexeme (chunk nm *> choice
+          [do
+           o <- getOffset
+           char '=' *> region (setErrorOffset o) (fail ("attribute should not have value: " <> T.unpack nm))
+          ,pure ()])
+    endingAttributes :: Maybe ValidatedHeader -> Parser (Maybe ValidatedHeader)
+    endingAttributes mvh = choice
+        [errorAttribute
+        ,lexeme attribute *> endingAttributes mvh
+        ,pure mvh]
+    attributeValue = (iden <|> quoted <|> doubleQuoted) <?> "attribute value"
+    iden :: Parser Text
+    iden = takeWhile1P (Just "iden char") unquotedChar
+    between' c = between (char c) (char c)
+    quoted = between' '\'' $ takeWhileP (Just "not ' or \n") (`notElem` ("'\n" :: [Char]))
+    doubleQuoted = between' '"' $ takeWhileP (Just "not \" or \n") (`notElem` ("\"\n" :: [Char]))
+    -- don't let any of the unquoted chars be { or }
+    unquotedChar = (`notElem` ("\"'>/={} \t" :: [Char]))
 
 {-
 parsing bodies
