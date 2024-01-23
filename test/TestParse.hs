@@ -62,6 +62,7 @@ errorHeaders =
     ,("~~~~{et-session=x stuff}\n", "unexpected \"stuff")
     ,("~~~~{et-session=x}\n", "expecting \"et-prompt\"")
     ,("~~~~{et-continue=x}\n", "attribute should not have value")
+    -- todo: et-to without et-filter, with attribute in between
     ]
 
 {-
@@ -103,6 +104,22 @@ validatedHeaders =
      ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing []))
     ,("~~~~{et-session et-prompt='ghci> '}"
      ,VHSession (SessionOptions Nothing "ghci> " Nothing []))
+
+    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}"
+     ,VHSession (SessionOptions (Just "ghci") "ghci> " (Just False) []))
+
+    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to'}"
+     ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing [("from", "to")]))
+
+    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to' et-filter='alsofrom' et-to='alsoto'}"
+     ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing [("from", "to"), ("alsofrom", "alsoto")]))
+
+    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text et-filter='from' et-to='to'}"
+     ,VHSession (SessionOptions (Just "ghci") "ghci> " (Just False) [("from", "to")]))
+
+    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to' et-no-initial-text}"
+     ,VHSession (SessionOptions (Just "ghci") "ghci> " (Just False) [("from", "to")]))
+    
      -- todo: inline
     ,("~~~~{et-continue}", VHContinue)
 
@@ -293,6 +310,11 @@ ghci>
 7
 ghci> 
 ~~~~
+
+~~~~{et-session='stuff' et-prompt=">>> " et-no-initial-text et-filter=f et-to=t}
+~~~~
+
+
 |], [FcSession $ EtSession 2 "ghci" "ghci> " Nothing []
      [Reply "stuff\n"
      ,Prompt "1 + 2\n"
@@ -306,7 +328,8 @@ ghci>
     ,FcContinue $ EtContinue 20
      [Prompt "3 + 4\n"
      ,Reply "7\nghci> \n"]
-          ])
+    ,FcSession $ EtSession 26 "stuff" ">>> " (Just False) [("f", "t")] []
+     ])
 
     ]
 

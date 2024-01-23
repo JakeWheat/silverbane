@@ -32,7 +32,7 @@ pexpectTest = describe "pexpect" $ do
         it "starting text" $ (do
             h <- spawn "ghci"
             expect h gp)
-            `shouldReturn` "GHCi, version 9.8.1: https://www.haskell.org/ghc/  :? for help\r\n"
+            `shouldReturn` "GHCi, version 9.8.1: https://www.haskell.org/ghc/  :? for help\n"
 
     describe "ghci exchange" $ do
         it "exchange" $ (do

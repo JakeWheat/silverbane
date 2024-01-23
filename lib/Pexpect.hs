@@ -55,7 +55,7 @@ expect (Pexpect p) prompt = do
     args <- sequence [Py.toPyObject prompt]
     void $ e <$> Py.app fn args
     bef <- e <$> Py.getAttr p "before"
-    e <$> Py.fromPyObject bef
+    T.filter (/= '\r') . e <$> Py.fromPyObject bef
 
 close :: Pexpect -> IO (Int,Maybe Int)
 close (Pexpect p) = do
@@ -77,7 +77,11 @@ exchange :: Pexpect -> Text -> Text -> IO Text
 exchange p prompt sl = do
     sendline p sl
     rep <- expect p prompt
+    -- not sure how you'd develop either this program itself
+    -- or with this program on both windows and linux robustly
+    -- so linux line endings only for now
+    let rep1 = T.filter (/= '\r') rep
     -- unbelievable hacky, this is not very robust
-    pure $ if T.stripEnd sl `T.isPrefixOf` T.stripStart rep
-        then T.drop (T.length $ T.stripEnd sl) $ T.stripStart rep
-        else rep
+    pure $ if T.stripEnd sl `T.isPrefixOf` T.stripStart rep1
+        then T.drop (T.length $ T.stripEnd sl) $ T.stripStart rep1
+        else rep1

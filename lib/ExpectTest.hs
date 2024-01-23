@@ -19,9 +19,9 @@ import System.Directory (doesFileExist, canonicalizePath)
 import System.Process (readProcess)
 import Data.Maybe (mapMaybe)
 import qualified Pexpect as P
-import Data.Char (isSpace)
+import Data.Char (isSpace, ord)
 import Control.Exception.Safe 
---import Debug.Trace (trace)
+import Debug.Trace (trace)
 
 import System.FilePath
 
@@ -45,6 +45,9 @@ import Parse
 
 data ExpectTestError
     = ExpectTestError String Int Text
+
+showDebugMismatches :: Bool
+showDebugMismatches = False
 
 prettyExpectError :: ExpectTestError -> Text
 prettyExpectError (ExpectTestError fn ln msg) =
@@ -76,8 +79,23 @@ expectTest fn input = do
         compareSessions tgt sls =
             let debugShow :: Text -> Text -> a -> a
                 debugShow _a _b x =
-                     {-trace (T.unpack $ "mismatch:\n[" <> T.strip _a <> "]\n[" <> T.strip _b <> "]")-}
-                     x
+                    if showDebugMismatches
+                    then let comparebits a b =
+                                 T.unwords
+                                 [T.singleton a
+                                 ,T.singleton b
+                                 ,show (a == b)
+                                 , show (ord a)
+                                 , "    "
+                                 , show (ord b)
+                                 , "    "
+                                 ]
+                             showit = T.unlines $ zipWith comparebits
+                                      (T.unpack $ T.strip _a) (T.unpack $ T.strip _b)
+                         in trace (T.unpack $ "mismatch:\n[" <> T.strip _a <> "]\n["
+                                   <> T.strip _b <> "]\n" <> showit) x
+                    else x
+    
                 -- a final empty prompt is optional
                 -- todo: reason about this better
                 f [Prompt p] [] | T.all isSpace p = True
@@ -94,7 +112,11 @@ expectTest fn input = do
                     then f ts bs
                     else debugShow t b $ False
                 f _a _b = debugShow (show (_a,_b)) "" False
-            in f tgt sls
+                -- ignore leading replies that are all whitespace
+                f1 (Reply t:ts) bs | T.all isSpace t = f1 ts bs
+                f1 ts (Reply b:bs) | T.all isSpace b = f1 ts bs
+                f1 ts bs = f ts bs
+            in f1 tgt sls
 
 
     -- lifes too short
@@ -146,9 +168,8 @@ expectTest fn input = do
             -- run the command
             h <- P.spawn (esCmd et)
             initialText <- P.expect h (esPrompt et)
-
             rs <- runSession h (esPrompt et) (esSessionLines et)
-            let tgt = (if esInitialText et == Just True
+            let tgt = (if esInitialText et `elem` [Just True, Nothing]
                        then (Reply initialText :)
                        else id) rs
             let showIt = T.unlines $ flip map tgt $ \case

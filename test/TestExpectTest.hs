@@ -83,35 +83,62 @@ stuff
     
     ,("simple session 1", [R.r|
 ~~~~{et-session='python3' et-prompt='>>> '}
+Python 3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
 >>> 
 ~~~~
 |], [])
 
+    ,("simple session 1", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
+
+Python 3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+
+>>> 
+~~~~
+|], [])
+
+    
+    ,("simple session 1.5", [R.r|
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+>>> 
+~~~~
+|], [])
+
+    
     ,("simple session 2", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
 ~~~~
 |], [])
 
-
-    -- todo: make this work by skipping the appropriate whitespace
-    -- only reply or something
-{-        ,("simple session 3", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+        ,("simple session 3", [R.r|
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
 
 >>> 
 
 ~~~~
-|], [])-}
+|], [])
 
         ,("simple session 4", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
 >>> 1 + 2
 3
 ~~~~
 |], [])
 
+        ,("simple session 4.5", [R.r|
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+>>> print("line1\nline2\nline3")
+line1
+line2
+line3
+~~~~
+|], [])
+
+        
         ,("simple session 4", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
 >>> 1 + 2
 3
 >>> 
@@ -119,7 +146,7 @@ stuff
 |], [])
 
         ,("simple session 5", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
 >>> 1 + 2
 3
 >>> 3 + 4
@@ -132,7 +159,7 @@ hello
 |], [])
 
         ,("simple session fail 1", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
 >>> 1 + 2
 4
 ~~~~
@@ -141,7 +168,7 @@ hello
     -- todo: check relative dir in sessions
 
         ,("session continue", [R.r|
-~~~~{et-session et-prompt=">>> "}
+~~~~{et-session et-prompt=">>> " et-no-initial-text}
 $ python3
 >>> 1 + 2
 3
@@ -154,7 +181,7 @@ $ python3
 |], [])
         
         ,("session continue switch", [R.r|
-~~~~{et-session='ghci' et-prompt='ghci> '}
+~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
 ghci> 1 + 2
 3
 ghci> 3 + 5
@@ -171,7 +198,7 @@ ghci> (3 :: Int) + 4
 7
 ~~~~
 
-~~~~{et-session et-prompt=">>> "}
+~~~~{et-session et-prompt=">>> " et-no-initial-text}
 $ python3
 >>> 1 + 2
 3
@@ -186,7 +213,7 @@ check this is definitely python and not ghci
 |], [])
 
         ,("double check session continue switch", [R.r|
-~~~~{et-session='ghci' et-prompt='ghci> '}
+~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
 ghci> 1 + 2
 3
 ghci> 3 + 5
@@ -201,7 +228,7 @@ ghci> (3 :: Int) + 4
 7
 ~~~~
 
-~~~~{et-session et-prompt=">>> "}
+~~~~{et-session et-prompt=">>> " et-no-initial-text}
 $ python3
 >>> 1 + 2
 3
@@ -216,7 +243,7 @@ check this is definitely python and not ghci
 |], ["SyntaxError: invalid syntax"])
 
         ,("mismatch in continue", [R.r|
-~~~~{et-session et-prompt=">>> "}
+~~~~{et-session et-prompt=">>> " et-no-initial-text}
 $ python3
 >>> 1 + 2
 3
@@ -234,8 +261,6 @@ $ python3
     -- session exiting unexpectedly in the middle
 
     -- session exiting unexpectedly in continue
-
-    -- no initial text option
 
     -- filters
 

@@ -201,6 +201,7 @@ import           Text.Megaparsec                 (ParseErrorBundle, ParsecT,
                                                     
                                                  )
 import           Text.Megaparsec.Char            (char)
+import qualified Control.Monad.Permutations as P
 import Data.Maybe (catMaybes)
 import Control.Monad.State
     (State
@@ -441,9 +442,17 @@ header = do
             ,pure Nothing]
     vhSession = do
         s <- namedAttribute "et-session"
-        p <- namedValueAttribute "et-prompt"
-        -- todo: parse optional bits
-        pure $ VHSession $ SessionOptions s p Nothing []
+        pr <- namedValueAttribute "et-prompt"
+
+        let noInitialText = False <$ noValueAttribute "et-no-initial-text"
+            etfilter =
+                (,) <$> namedValueAttribute "et-filter"
+                <*> namedValueAttribute "et-to"
+        (itx, fs) <- P.runPermutation $
+            (,) <$> P.toPermutationWithDefault Nothing (Just <$> noInitialText)
+                <*> P.toPermutation (many etfilter)
+
+        pure $ VHSession $ SessionOptions s pr itx fs
     -- todo: match any recognised attribute and error
     errorAttribute = do
         o <- getOffset
@@ -606,7 +615,7 @@ filex = choice
     pure Nothing]
 
 session :: Int -> (Maybe Text) -> Text -> Maybe Bool -> [(Text,Text)] -> Parser EtSession
-session ln mcmd prompt _mInitialText _filters = do
+session ln mcmd prompt mInitialText filters = do
     cmd <- case mcmd of
         Just x -> pure x
         Nothing -> do
@@ -615,7 +624,7 @@ session ln mcmd prompt _mInitialText _filters = do
             void $ char '\n'
             pure cmdx
     sl <- sessionBody prompt
-    pure $ EtSession ln cmd prompt Nothing [] sl
+    pure $ EtSession ln cmd prompt mInitialText filters sl
 
 continue :: Int -> Text -> Parser EtContinue
 continue ln prompt = do

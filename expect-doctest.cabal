@@ -33,6 +33,7 @@ library
                       python-wrapper,
                       text,
                       megaparsec,
+                      parser-combinators,
                       mtl,
                       directory,
                       process,
