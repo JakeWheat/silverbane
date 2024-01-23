@@ -53,6 +53,7 @@ expectErrorsShouldMatch gotA expectedMatches = do
             then null got
             else let foundMatch em = or $ map (em `T.isInfixOf`) ps
                  in and $ map foundMatch expectedMatches
+    -- todo: check there are no extra errors?
     unless passes $
         expectationFailure $ show expectedMatches <> "\n"
            <> unlines (map T.unpack ps)

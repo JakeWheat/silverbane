@@ -36,6 +36,7 @@ library
                       mtl,
                       directory,
                       process,
+                      filepath,
 
 executable expect-doctest
     import:           commonstuff

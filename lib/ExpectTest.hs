@@ -15,12 +15,14 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Control.Monad (when, void)
-import System.Directory (doesFileExist)
+import System.Directory (doesFileExist, canonicalizePath, withCurrentDirectory)
 import System.Process (readProcess)
 import Data.Maybe (mapMaybe)
 import qualified Pexpect as P
 import Data.Char (isSpace)
 --import Debug.Trace (trace)
+
+import System.FilePath
 
 import Data.IORef
     (newIORef
@@ -48,9 +50,11 @@ prettyExpectError (ExpectTestError fn ln msg) =
         T.pack fn <> ":" <> show ln <> ":0: " <> msg
 
 expectTest :: String -> Text -> IO [ExpectTestError]
-expectTest fn input = do
-
-    --input <- T.readFile fn
+expectTest fn input =
+    -- run in directory containing document - so file references
+    -- are relative to this, and commands are run in this directory
+    withCurrentDirectory (takeDirectory fn) $ do
+    
     let ps = either (error . prettyError) id $ parseFile fn input
 
     P.initPexpect
@@ -106,9 +110,13 @@ expectTest fn input = do
     
     flip mapM_ ps $ \case
         FcFile et -> do
-            -- read the file
-            let sfn = T.unpack $ efFilename et
+            -- read the file, canonicalize for the error message
+            -- do it before reading so if there's an error there's
+            -- less things that can be out of sync
+            sfn <- canonicalizePath (T.unpack (efFilename et))
+            let fn' = T.pack sfn
             e <- doesFileExist sfn
+            
             if e
                 then do
                     src1 <- T.readFile sfn
@@ -118,7 +126,7 @@ expectTest fn input = do
                     -- if different, try trimming leading and trailing whitespace lines?
                     -- I think just ask the user to get it right
                  else
-                     addError (efStartLine et) $ "file not found: " <> efFilename et
+                     addError (efStartLine et) $ "file not found: " <> efFilename et <> " (expected at " <> fn' <> " )"
         FcRun et ->
             case map T.unpack $ T.words (erCmd et) of
                 (c:cs) -> do

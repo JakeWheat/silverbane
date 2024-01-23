@@ -33,24 +33,39 @@ testfilecontent
 ~~~~
 
 |], [])
-    ,("file", [R.r|
+    ,("file-wrong-content", [R.r|
 
 ~~~~{et-file='testfiles/testfile'}
 wrong testfilecontent
 ~~~~
 
-|], ["file:3:0: files don't match"])
+|], ["file-wrong-content:3:0: files don't match"])
     -- todo: better way to check for text in the error, and separately check
     -- the position
+    -- idea: instead of doing this, have a single golden test of a large document
+    -- which will test all the errors, then you can update this one test
+    -- relatively easily if e.g. the formatting is changed, and it will
+    -- also test the line numbers
 
-    ,("file", [R.r|
+    ,("file-doesn-t-exist", [R.r|
 
 ~~~~{et-file='testfiles/noexist'}
-wrong testfilecontent
+testfilecontent
 ~~~~
 
 |], ["file not found: testfiles/noexist"])
 
+    ,("testfiles/file-path-relative", [R.r|
+
+~~~~{et-file='testfile'}
+testfilecontent
+~~~~
+
+|], [])
+
+    -- regular runs
+    -- check current directory
+    
     -- python interaction
 
 
