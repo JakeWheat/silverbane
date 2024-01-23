@@ -98,8 +98,10 @@ validatedHeaders :: [(Text, ValidatedHeader)]
 validatedHeaders =
     [("~~~~{et-file=filename}", VHFile "filename")
     ,("~~~~{et-file-prefix='--'}", VHFilePrefix "--")
-    ,("~~~~{et-run='echo stuff'}", VHRun "echo stuff")
-    ,("~~~~{et-run}", VHRunInline)
+    ,("~~~~{et-run='echo stuff'}", VHRun "echo stuff" True)
+    ,("~~~~{et-run}", VHRunInline True)
+    ,("~~~~{et-run='echo stuff' et-non-zero-exit}", VHRun "echo stuff" False)
+    ,("~~~~{et-run et-non-zero-exit}", VHRunInline False)
     ,("~~~~{et-session='ghci' et-prompt='ghci> '}"
      ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing []))
     ,("~~~~{et-session et-prompt='ghci> '}"
@@ -277,14 +279,14 @@ stuff2
 ~~~~{et-run='echo stuff'}
 stuff
 ~~~~
-|], [FcRun (EtRun 3 "echo stuff" "stuff\n")])
+|], [FcRun (EtRun 3 "echo stuff" True "stuff\n")])
 
     ,([R.r|
 ~~~~{et-run}
 $ echo stuff
 stuff
 ~~~~
-|], [FcRun (EtRun 2 "echo stuff" "stuff\n")])
+|], [FcRun (EtRun 2 "echo stuff" True "stuff\n")])
 
     ,([R.r|
 ~~~~{et-session='ghci' et-prompt='ghci> '}

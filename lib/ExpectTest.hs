@@ -16,7 +16,9 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Control.Monad (when, void)
 import System.Directory (doesFileExist, canonicalizePath)
-import System.Process (readProcess)
+import ProcessUtils (myReadProcess)
+
+import System.Exit (ExitCode(..))
 import Data.Maybe (mapMaybe)
 import qualified Pexpect as P
 import Data.Char (isSpace, ord)
@@ -54,6 +56,7 @@ prettyExpectError :: ExpectTestError -> Text
 prettyExpectError (ExpectTestError fn ln msg) =
         T.pack fn <> ":" <> show ln <> ":0: " <> msg
 
+-- TODO: in serious need of refactoring
 expectTest :: String -> Text -> IO [ExpectTestError]
 expectTest fn input = do
     let ps = either (error . prettyError) id $ parseFile fn input
@@ -167,14 +170,23 @@ expectTest fn input = do
         FcRun et ->
             case map T.unpack $ T.words (erCmd et) of
                 (c:cs) -> do
-                    -- todo: catch exceptions here and report as regular error
-                    etgt <- tryAny $ readProcess c cs ""
+                    etgt <- tryAny $ myReadProcess Nothing c cs ""
                     case etgt of
-                        Left e -> addError (erStartLine et) $ "run failed: " <> show e
-                        Right tgt
+                        Left e ->
+                            addError (erStartLine et) $ "run failed with unexpected issue: " <> show e
+                        Right (ExitSuccess, tgt)
+                            | not (erZeroExit et) ->
+                              addError (erStartLine et) $ "process didn't exit with non zero:\n" <> T.pack tgt
                             | erBody et == T.pack tgt -> pure ()
                             | otherwise ->
                               addError (erStartLine et) $ "output doesn't match: " <> T.pack tgt
+                        Right (ExitFailure {}, tgt)
+                            | erZeroExit et ->
+                              addError (erStartLine et) $ "process exited with non zero:\n" <> T.pack tgt
+                            | erBody et == T.pack tgt -> pure ()
+                            | otherwise ->
+                              addError (erStartLine et) $ "output doesn't match: " <> T.pack tgt
+
                 [] -> addError (erStartLine et) "no command given"
         FcSession et -> do
             old <- readIORef currentSpawn
@@ -211,7 +223,7 @@ expectTest fn input = do
                         else addError (ecStartLine et) $ "output doesn't match:\n" <> showIt
     es <- readIORef esr
     pure $ reverse es
-   
+
 -- todo: add callstack
 error :: Text -> a
 error = Pr.error . T.unpack

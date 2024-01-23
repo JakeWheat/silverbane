@@ -39,7 +39,9 @@ makeExpectTestTest nm src tgt =
 
 expectTestExamples :: [(Text,Text,[Text])]
 expectTestExamples =
-    [("file", [R.r|
+    [--------------------------------------
+     --  file blocks
+     ("file", [R.r|
 
 ~~~~{et-file='testfiles/testfile'}
 testfilecontent
@@ -76,11 +78,73 @@ testfilecontent
 
 |], [])
 
+    --------------------------------------
+    -- run process blocks
+    
     ,("simple run", [R.r|
 ~~~~{et-run='echo stuff'}
 stuff
 ~~~~
 |], [])
+
+    ,("starting run process fails", [R.r|
+~~~~{et-run='echo1 stuff'}
+stuff
+~~~~
+|], ["run failed with unexpected issue"])
+
+    
+    ,("check interleaved stdout and err", [R.r|
+~~~~{et-run='testfiles/testscript.py 0'}
+stdoutline1
+stdoutline2
+stderrline1
+stderrline2
+stdoutline3
+stdoutline4
+stderrline3
+stderrline4
+~~~~
+|], [])
+
+    ,("check expected error code", [R.r|
+~~~~{et-run='testfiles/testscript.py 1' et-non-zero-exit}
+stdoutline1
+stdoutline2
+stderrline1
+stderrline2
+stdoutline3
+stdoutline4
+stderrline3
+stderrline4
+~~~~
+|], [])
+
+    ,("check unexpected non zero error", [R.r|
+~~~~{et-run='testfiles/testscript.py 1'}
+stdoutline1
+stdoutline2
+stderrline1
+stderrline2
+stdoutline3
+stdoutline4
+stderrline3
+stderrline4
+~~~~
+|], ["process exited with non zero"])
+
+        ,("check unexpected 0 exit code", [R.r|
+~~~~{et-run='testfiles/testscript.py 0' et-non-zero-exit}
+stdoutline1
+stdoutline2
+stderrline1
+stderrline2
+stdoutline3
+stdoutline4
+stderrline3
+stderrline4
+~~~~
+|], ["process didn't exit with non zero"])
 
 -- todo: come back to this
     
@@ -90,8 +154,10 @@ stuff
 ~~~~
 |], [])-}
 
-    -- TODO: check run fails
-    
+    --------------------------------------
+    -- sessions
+
+
     ,("simple session 1", [R.r|
 ~~~~{et-session='python3' et-prompt='>>> '}
 Python 3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0] on linux

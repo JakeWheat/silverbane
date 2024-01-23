@@ -197,7 +197,7 @@ import           Text.Megaparsec                 (ParseErrorBundle, ParsecT,
                                                   setErrorOffset,getOffset, region,
                                                   lookAhead, manyTill,
                                                   getSourcePos, sourceLine,unPos,
-                                                  runParserT,
+                                                  runParserT,option
                                                     
                                                  )
 import           Text.Megaparsec.Char            (char)
@@ -231,6 +231,7 @@ data EtRun
     = EtRun
     {erStartLine :: Int
     ,erCmd :: Text
+    ,erZeroExit :: Bool
     ,erBody :: Text
     }
       deriving (Eq,Show)
@@ -261,8 +262,8 @@ data EtContinue
 data ValidatedHeader
     = VHFile Text
     | VHFilePrefix Text
-    | VHRun Text
-    | VHRunInline
+    | VHRun Text Bool -- false if non zero exit expected
+    | VHRunInline Bool
     | VHSession SessionOptions
     | VHContinue
       deriving (Eq,Show)
@@ -431,9 +432,10 @@ header = do
                   ,VHFile <$> namedValueAttribute "et-file"
                   ,do
                    x <- namedAttribute "et-run"
+                   expectZeroExit <- option True (False <$ noValueAttribute "et-non-zero-exit")
                    case x of
-                       Nothing -> pure VHRunInline
-                       Just v -> pure $ VHRun v
+                       Nothing -> pure $ VHRunInline expectZeroExit
+                       Just v -> pure $ VHRun v expectZeroExit
                   ,vhSession
                   ,VHContinue <$ noValueAttribute "et-continue"]
              endingAttributes (Just vh)
@@ -469,6 +471,7 @@ header = do
             ,"et-initial-text"
             ,"et-filter"
             ,"et-to"
+            ,"et-non-zero-exit"
             ]
     
     namedAttribute :: Text -> Parser (Maybe Text)
@@ -597,10 +600,10 @@ filex = choice
             bdy <- simpleBody
             pure . Just . FcFile $ EtFile o nm bdy
         Just (VHFilePrefix pr) -> Just . FcFile <$> fileInlineBody o pr
-        Just (VHRun cmd) -> do
+        Just (VHRun cmd zeroExit) -> do
             bdy <- simpleBody
-            pure . Just . FcRun $ EtRun o cmd bdy
-        Just VHRunInline -> Just . FcRun <$> runInline o
+            pure . Just . FcRun $ EtRun o cmd zeroExit bdy
+        Just (VHRunInline zeroExit) -> Just . FcRun <$> runInline o zeroExit
         Just (VHSession (SessionOptions {..})) -> do
             put (Just soPrompt)
             Just . FcSession <$> session o soCmdline soPrompt soInitialText soFilters
@@ -632,13 +635,13 @@ continue ln prompt = do
     pure $ EtContinue ln sl
 
 
-runInline :: Int -> Parser EtRun
-runInline ln = do
+runInline :: Int -> Bool -> Parser EtRun
+runInline ln zeroExit = do
     void $ chunk "$ "
     cmd <- takeWhile1P (Just "command line") (/= '\n')
     void $ char '\n'
     bdy <- simpleBody
-    pure $ EtRun ln cmd bdy
+    pure $ EtRun ln cmd zeroExit bdy
     
     
 fileInlineBody :: Int -> Text -> Parser EtFile

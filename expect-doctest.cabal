@@ -29,6 +29,7 @@ library
                       Parse
                       ExpectTest
                       RegexReplace
+                      ProcessUtils
     hs-source-dirs:   lib
     build-depends:    base ^>=4.19.0.0,
                       python-wrapper,
@@ -41,6 +42,8 @@ library
                       filepath,
                       safe-exceptions,
                       pcre-utils,
+                      deepseq,
+                      async,
 
 executable expect-doctest
     import:           commonstuff
