@@ -24,6 +24,8 @@ makeExpectTestTest :: Text -> Text -> [Text] -> SpecWith ()
 makeExpectTestTest nm src tgt =
     it (T.unpack nm) $ expectTest (T.unpack nm) src `expectErrorsShouldMatch` tgt
 
+-- avoid testing syntax variations that are handled in the parser tests
+
 expectTestExamples :: [(Text,Text,[Text])]
 expectTestExamples =
     [("file", [R.r|
@@ -63,23 +65,179 @@ testfilecontent
 
 |], [])
 
-    -- regular runs
-    -- check current directory
+    ,("simple run", [R.r|
+~~~~{et-run='echo stuff'}
+stuff
+~~~~
+|], [])
+
+-- todo: come back to this
     
-    -- python interaction
+{-    ,("check relative dir", [R.r|
+~~~~{et-run='cat testfile; ls -l testfile'}
+stuff
+~~~~
+|], [])-}
+
+    -- TODO: check run fails
+    
+    ,("simple session 1", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
+>>> 
+~~~~
+|], [])
+
+    ,("simple session 2", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
+~~~~
+|], [])
 
 
-    -- final prompt being insignificant
+    -- todo: make this work by skipping the appropriate whitespace
+    -- only reply or something
+{-        ,("simple session 3", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
 
-    -- insignificant whitespace in sessions
+>>> 
 
-    -- continue + switching sessions
+~~~~
+|], [])-}
 
-    -- failure in continue
+        ,("simple session 4", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
+>>> 1 + 2
+3
+~~~~
+|], [])
+
+        ,("simple session 4", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
+>>> 1 + 2
+3
+>>> 
+~~~~
+|], [])
+
+        ,("simple session 5", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
+>>> 1 + 2
+3
+>>> 3 + 4
+
+7
+
+>>> print('hello')
+hello
+~~~~
+|], [])
+
+        ,("simple session fail 1", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
+>>> 1 + 2
+4
+~~~~
+|], ["output doesn't match"])
+
+    -- todo: check relative dir in sessions
+
+        ,("session continue", [R.r|
+~~~~{et-session et-prompt=">>> "}
+$ python3
+>>> 1 + 2
+3
+~~~~
+
+~~~~{et-continue}
+>>> 3 + 4
+7
+~~~~
+|], [])
+        
+        ,("session continue switch", [R.r|
+~~~~{et-session='ghci' et-prompt='ghci> '}
+ghci> 1 + 2
+3
+ghci> 3 + 5
+8
+ghci> 3 + 7
+10
+ghci> 
+~~~~
+
+check this is definitely ghci and not python
+
+~~~~{et-continue}
+ghci> (3 :: Int) + 4
+7
+~~~~
+
+~~~~{et-session et-prompt=">>> "}
+$ python3
+>>> 1 + 2
+3
+~~~~
+
+check this is definitely python and not ghci
+
+~~~~{et-continue}
+>>> 3 + 4 if isinstance(3, int) else None
+7
+~~~~
+|], [])
+
+        ,("double check session continue switch", [R.r|
+~~~~{et-session='ghci' et-prompt='ghci> '}
+ghci> 1 + 2
+3
+ghci> 3 + 5
+8
+ghci> 3 + 7
+10
+ghci> 
+~~~~
+
+~~~~{et-continue}
+ghci> (3 :: Int) + 4
+7
+~~~~
+
+~~~~{et-session et-prompt=">>> "}
+$ python3
+>>> 1 + 2
+3
+~~~~
+
+check this is definitely python and not ghci
+
+~~~~{et-continue}
+>>> (3 :: Int) + 4
+7
+~~~~
+|], ["SyntaxError: invalid syntax"])
+
+        ,("mismatch in continue", [R.r|
+~~~~{et-session et-prompt=">>> "}
+$ python3
+>>> 1 + 2
+3
+~~~~
+
+~~~~{et-continue}
+>>> 3 + 4
+8
+~~~~
+|], ["output doesn't match"])
+
+
+    -- session run fails
+
+    -- session exiting unexpectedly in the middle
+
+    -- session exiting unexpectedly in continue
 
     -- no initial text option
 
     -- filters
-    
+
     ]
 

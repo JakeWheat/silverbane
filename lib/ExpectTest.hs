@@ -15,11 +15,12 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Control.Monad (when, void)
-import System.Directory (doesFileExist, canonicalizePath, withCurrentDirectory)
+import System.Directory (doesFileExist, canonicalizePath)
 import System.Process (readProcess)
 import Data.Maybe (mapMaybe)
 import qualified Pexpect as P
 import Data.Char (isSpace)
+import Control.Exception.Safe 
 --import Debug.Trace (trace)
 
 import System.FilePath
@@ -50,11 +51,7 @@ prettyExpectError (ExpectTestError fn ln msg) =
         T.pack fn <> ":" <> show ln <> ":0: " <> msg
 
 expectTest :: String -> Text -> IO [ExpectTestError]
-expectTest fn input =
-    -- run in directory containing document - so file references
-    -- are relative to this, and commands are run in this directory
-    withCurrentDirectory (takeDirectory fn) $ do
-    
+expectTest fn input = do
     let ps = either (error . prettyError) id $ parseFile fn input
 
     P.initPexpect
@@ -110,10 +107,8 @@ expectTest fn input =
     
     flip mapM_ ps $ \case
         FcFile et -> do
-            -- read the file, canonicalize for the error message
-            -- do it before reading so if there's an error there's
-            -- less things that can be out of sync
-            sfn <- canonicalizePath (T.unpack (efFilename et))
+            -- read the file
+            sfn <- canonicalizePath (takeDirectory fn </> T.unpack (efFilename et))
             let fn' = T.pack sfn
             e <- doesFileExist sfn
             
@@ -125,15 +120,21 @@ expectTest fn input =
                         addError (efStartLine et) "files don't match"
                     -- if different, try trimming leading and trailing whitespace lines?
                     -- I think just ask the user to get it right
-                 else
-                     addError (efStartLine et) $ "file not found: " <> efFilename et <> " (expected at " <> fn' <> " )"
+                else
+                     addError (efStartLine et) $
+                         "file not found: " <> efFilename et
+                         <> " (expected at " <> fn' <> " )"
         FcRun et ->
             case map T.unpack $ T.words (erCmd et) of
                 (c:cs) -> do
                     -- todo: catch exceptions here and report as regular error
-                    tgt <- readProcess c cs ""
-                    when (erBody et /= T.pack tgt) $
-                        addError (erStartLine et) $ "output doesn't match: " <> T.pack tgt
+                    etgt <- tryAny $ readProcess c cs ""
+                    case etgt of
+                        Left e -> addError (erStartLine et) $ "run failed: " <> show e
+                        Right tgt
+                            | erBody et == T.pack tgt -> pure ()
+                            | otherwise ->
+                              addError (erStartLine et) $ "output doesn't match: " <> T.pack tgt
                 [] -> addError (erStartLine et) "no command given"
         FcSession et -> do
             old <- readIORef currentSpawn

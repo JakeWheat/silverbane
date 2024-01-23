@@ -37,6 +37,7 @@ library
                       directory,
                       process,
                       filepath,
+                      safe-exceptions,
 
 executable expect-doctest
     import:           commonstuff
