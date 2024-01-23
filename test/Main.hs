@@ -1,9 +1,10 @@
 
 module Main (main) where
 
-import PexpectTest (initPexpectTest, pexpectTest)
+import TestPexpect (initPexpectTest, pexpectTest)
 
-import ParseTest (parseTests)
+import TestParse (parseTests)
+import  TestExpectTest (expectTestTests)
 
 import Test.Hspec (hspec)
 
@@ -13,4 +14,4 @@ main = do
     hspec $ do
         pexpectTest
         parseTests
-    
+        expectTestTests

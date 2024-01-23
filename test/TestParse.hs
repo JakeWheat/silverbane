@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
-module ParseTest (parseTests) where
+module TestParse (parseTests) where
 
 import Test.Hspec
     (SpecWith
@@ -18,7 +18,7 @@ import Parse as P
 
 import qualified Data.Text as T
 import Data.Text (Text)
-import TestUtils (shouldFailContains)
+import Utils (shouldFailContains)
 
 parseTests :: SpecWith ()
 parseTests = describe "parse" $ do
@@ -32,6 +32,8 @@ parseTests = describe "parse" $ do
     describe "files" $ do
         mapM_ (uncurry makeFileTest) simpleFiles
        
+    --describe "file errors" $ do
+    --    mapM_ (uncurry makeFileErrorTest) simpleFileErrors
 
 makeErrorHeaderTest :: Text -> Text -> SpecWith ()
 makeErrorHeaderTest input e = 
@@ -306,16 +308,21 @@ ghci>
      ,Reply "7\nghci> \n"]
           ])
 
-    ,([R.r|
-
-~~~~{et-continue}
->>> 3 + 4
-7
-ghci> 
-~~~~
-|], [])
     ]
 
 
 -- errors:
 -- continue without session
+
+{-makeFileErrorTest :: Text -> Text -> SpecWith ()
+makeFileErrorTest input e = 
+    it ("file error: " <> quickShow input)
+        $ myRunParse (pure "" <* file <* eof) "" input
+          `shouldFailContains` e-}
+
+{-simpleFileErrors :: [(Text, Text)]
+simpleFileErrors =
+    [    ("~~~~{\na}", "xx")
+
+        --("~~~~{et-session='ghci' et-prompt='ghci> '\n", "xx")
+    ]-}

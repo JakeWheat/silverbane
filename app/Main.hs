@@ -1,40 +1,30 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import qualified Prelude as Pr
 import Prelude hiding (error, show, putStrLn)
 
-import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Text.IO (putStrLn)
+import qualified Data.Text.IO as T
 
-import qualified Pexpect as P
+import qualified ExpectTest as E
+import System.Environment (getArgs)
 
 main :: IO ()
 main = do
-    P.initPexpect
-    
-    h <- P.spawn "ghci"
-    putStrLn "spawn ghci"
-    let prompt = "ghci> "
-    it <- P.expect h prompt
-    putStrLn it
-    let ls = ["1 + 2", "putStrLn \"hello\\nstuff\""]
-    flip mapM_ ls $ \l -> do
-        --P.sendline h l
-        rep <- P.exchange h prompt l
-        putStrLn $ "Send: " <> l
-        --ret <- P.expect h prompt
-        putStrLn $ "reply: " <> T.strip rep
 
-        --let str = T.unpack rep
-        --    showIt n c = Pr.putStrLn $ Pr.show n ++ " ---- " ++ " " ++ Pr.show (ord c) ++ " ----\n\n"
-        --zipWithM_ showIt [(0::Int)..] str
-        --flip mapM_ str $ \c -> 
+    as <- getArgs
+    let fn = case as of
+                 [x] -> x
+                 _ -> error $ "please pass single filename to process, got " <> T.pack (unwords as)
 
-    (a,b) <- P.close h
-    putStrLn $ "exit: " <> show (a,b)
+    input <- T.readFile fn
+    es <- E.expectTest fn input
+    flip mapM_ es $ \e -> putStrLn $ E.prettyExpectError e
 
 -- todo: add callstack
 error :: Text -> a

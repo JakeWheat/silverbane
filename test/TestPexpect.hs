@@ -1,7 +1,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module PexpectTest (initPexpectTest, pexpectTest) where
+module TestPexpect (initPexpectTest, pexpectTest) where
 
 import Test.Hspec
     (SpecWith
@@ -55,6 +55,21 @@ pexpectTest = describe "pexpect" $ do
             void $ expect h pp
             T.strip <$> exchange h pp "1 + 2")
             `shouldReturn` "3"
+
+    describe "exchange 3" $ do
+        it "exchange" $ do
+            let pp = ">>> "
+            h <- spawn "python3"
+            void $ expect h pp
+            T.strip <$> exchange h pp "1 + 2"
+              `shouldReturn` "3"
+
+            T.strip <$> exchange h pp "4 + 5"
+              `shouldReturn` "9"
+
+            T.strip <$> exchange h pp "6 + 7"
+              `shouldReturn` "13"
+
 
 
 -- todo: figure out how to use shared state with hspec

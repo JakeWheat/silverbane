@@ -77,6 +77,7 @@ exchange :: Pexpect -> Text -> Text -> IO Text
 exchange p prompt sl = do
     sendline p sl
     rep <- expect p prompt
-    pure $ if sl `T.isPrefixOf` rep
-        then T.drop (T.length sl) rep
+    -- unbelievable hacky, this is not very robust
+    pure $ if T.stripEnd sl `T.isPrefixOf` T.stripStart rep
+        then T.drop (T.length $ T.stripEnd sl) $ T.stripStart rep
         else rep

@@ -176,14 +176,13 @@ checked later.
 
 -}
 
-{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards #-}
 module Parse where
 
 import           Data.Char                       (isSpace)
-import           Data.Functor.Identity           (Identity)
+--import           Data.Functor.Identity           (Identity)
 import           Data.Text                       (Text)
 import qualified Data.Text                       as T
 --import qualified Data.Text.IO                    as T
@@ -191,13 +190,12 @@ import           Data.Void                       (Void)
 
 import           Control.Monad                   (void, join)
 import           Text.Megaparsec                 (ParseErrorBundle, ParsecT,
-                                                  eof, errorBundlePretty, parse,
-                                                  parseTest, satisfy,
-                                                  takeWhile1P, takeWhileP, try, (<|>),
+                                                  eof, errorBundlePretty,
+                                                  takeWhile1P, takeWhileP, (<|>),
                                                   optional, chunk, match, many,
                                                   (<?>), between,choice,
                                                   setErrorOffset,getOffset, region,
-                                                  failure, lookAhead, manyTill,
+                                                  lookAhead, manyTill,
                                                   getSourcePos, sourceLine,unPos,
                                                   runParserT,
                                                     
@@ -222,28 +220,28 @@ data FileChunk
 
 data EtFile
     = EtFile
-    {etStartLine :: Int
-    ,etFilename :: Text
-    ,etBody :: Text
+    {efStartLine :: Int
+    ,efFilename :: Text
+    ,efBody :: Text
     }
       deriving (Eq,Show)
 
 data EtRun
     = EtRun
-    {etStartLine :: Int
-    ,etCmd :: Text
-    ,etBody :: Text
+    {erStartLine :: Int
+    ,erCmd :: Text
+    ,erBody :: Text
     }
       deriving (Eq,Show)
 
 data EtSession
     = EtSession
-    {etStartLine :: Int
-    ,etCmd :: Text
-    ,etPrompt :: Text
-    ,etInitialText :: Maybe Bool
-    ,etFilters :: [(Text,Text)]
-    ,etSessionLines :: [SessionLine]
+    {esStartLine :: Int
+    ,esCmd :: Text
+    ,esPrompt :: Text
+    ,esInitialText :: Maybe Bool
+    ,esFilters :: [(Text,Text)]
+    ,esSessionLines :: [SessionLine]
     }
       deriving (Eq,Show)
 
@@ -254,8 +252,8 @@ data SessionLine
 
 data EtContinue
     = EtContinue
-    {etStartLine :: Int
-    ,etSessionLines :: [SessionLine]
+    {ecStartLine :: Int
+    ,ecSessionLines :: [SessionLine]
     }
       deriving (Eq,Show)
 
@@ -288,6 +286,9 @@ type Parser = ParsecT Void Text (State (Maybe Text))
 
 myRunParse :: Parser a -> String -> Text -> Either MyParseError a
 myRunParse p name input = evalState (runParserT p name input) Nothing
+
+parseFile :: String -> Text -> Either MyParseError [FileChunk]
+parseFile name input = myRunParse (file <* eof) name input
 
 
 {-
@@ -403,7 +404,7 @@ attribute =
     quoted = between' '\'' $ takeWhileP (Just "not ' or \n") (`notElem` ("'\n" :: [Char]))
     doubleQuoted = between' '"' $ takeWhileP (Just "not \" or \n") (`notElem` ("\"\n" :: [Char]))
     -- don't let any of the unquoted chars be { or }
-    unquotedChar = (`notElem` ("\"'>/={} \t" :: [Char]))
+    unquotedChar = (`notElem` ("\"'>/={} \t\n" :: [Char]))
 
 -- returns the line including the newline at the end if there is one
 -- (this is not very efficient, but good enough for now)
@@ -483,10 +484,10 @@ header = do
     iden :: Parser Text
     iden = takeWhile1P (Just "iden char") unquotedChar
     between' c = between (char c) (char c)
-    quoted = between' '\'' $ takeWhileP (Just "not ' or \n") (`notElem` ("'\n" :: [Char]))
-    doubleQuoted = between' '"' $ takeWhileP (Just "not \" or \n") (`notElem` ("\"\n" :: [Char]))
+    quoted = between' '\'' $ takeWhileP (Just "character") (`notElem` ("'\n" :: [Char]))
+    doubleQuoted = between' '"' $ takeWhileP (Just "character") (`notElem` ("\"\n" :: [Char]))
     -- don't let any of the unquoted chars be { or }
-    unquotedChar = (`notElem` ("\"'>/={} \t" :: [Char]))
+    unquotedChar = (`notElem` ("\"'>/={} \t\n" :: [Char]))
 
 {-
 parsing bodies
@@ -599,16 +600,13 @@ filex = choice
             case mprompt of
                 Nothing -> region (setErrorOffset o) (fail "continue block without preceding session block")
                 Just prompt -> Just . FcContinue <$> continue o prompt
-            
-        Just x -> error $ "please implement " <> show x
-            
    ,do
     void $ takeWhileP (Just "text") (/= '\n')
     void (char '\n') <|> eof
     pure Nothing]
 
 session :: Int -> (Maybe Text) -> Text -> Maybe Bool -> [(Text,Text)] -> Parser EtSession
-session ln mcmd prompt mInitialText filters = do
+session ln mcmd prompt _mInitialText _filters = do
     cmd <- case mcmd of
         Just x -> pure x
         Nothing -> do
