@@ -45,6 +45,7 @@ import Parse
     ,SessionLine(..)
     ,EtContinue(..)
     )
+import GHC.Stack (HasCallStack)
 
 data ExpectTestError
     = ExpectTestError String Int Text
@@ -170,7 +171,7 @@ expectTest fn input = do
         FcRun et ->
             case map T.unpack $ T.words (erCmd et) of
                 (c:cs) -> do
-                    etgt <- tryAny $ myReadProcess Nothing c cs ""
+                    etgt <- tryAny $ myReadProcess (Just $ takeDirectory fn) c cs ""
                     case etgt of
                         Left e ->
                             addError (erStartLine et) $ "run failed with unexpected issue: " <> show e
@@ -196,19 +197,28 @@ expectTest fn input = do
                     void $ P.close p
                     writeIORef currentSpawn Nothing
             -- run the command
-            h <- P.spawn (esCmd et)
-            initialText <- P.expect h (esPrompt et)
-            rs <- runSession h (esPrompt et) (esSessionLines et)
-            let tgt = (if esInitialText et `elem` [Just True, Nothing]
-                       then (Reply initialText :)
-                       else id) rs
-            let showIt = T.unlines $ flip map tgt $ \case
-                    Prompt p -> esPrompt et <> T.strip p
-                    Reply r -> T.strip r
-            if compareSessions (esFilters et) tgt (esSessionLines et)
-                then pure ()
-                else addError (esStartLine et) $ "output doesn't match:\n" <> showIt
-            writeIORef currentSpawn (Just (h,esPrompt et, esFilters et))
+            eh <- tryAny $ do
+                h <- P.spawn (Just $ T.pack $ takeDirectory fn) (esCmd et)
+                -- no idea how to get this so it catches the exception
+                -- properly without this
+                initialText <- P.expect h (esPrompt et)
+                pure (h,initialText)
+            case eh of
+                Left e -> do
+                    addError (esStartLine et) $ "session process didn't start: " <> show e
+                    writeIORef currentSpawn Nothing
+                Right (h, initialText) -> do
+                    rs <- runSession h (esPrompt et) (esSessionLines et)
+                    let tgt = (if esInitialText et `elem` [Just True, Nothing]
+                               then (Reply initialText :)
+                               else id) rs
+                    let showIt = T.unlines $ flip map tgt $ \case
+                            Prompt p -> esPrompt et <> T.strip p
+                            Reply r -> T.strip r
+                    if compareSessions (esFilters et) tgt (esSessionLines et)
+                        then pure ()
+                        else addError (esStartLine et) $ "output doesn't match:\n" <> showIt
+                    writeIORef currentSpawn (Just (h,esPrompt et, esFilters et))
         FcContinue et -> do
             mh <- readIORef currentSpawn
             case mh of
@@ -225,7 +235,8 @@ expectTest fn input = do
     pure $ reverse es
 
 -- todo: add callstack
-error :: Text -> a
+
+error :: HasCallStack => Text -> a
 error = Pr.error . T.unpack
 
 show :: Show a => a -> Text

@@ -30,20 +30,20 @@ pexpectTest = describe "pexpect" $ do
     
     describe "ghci init text" $ do
         it "starting text" $ (do
-            h <- spawn "ghci"
+            h <- spawn Nothing "ghci"
             expect h gp)
             `shouldReturn` "GHCi, version 9.8.1: https://www.haskell.org/ghc/  :? for help\n"
 
     describe "ghci exchange" $ do
         it "exchange" $ (do
-            h <- spawn "ghci"
+            h <- spawn Nothing "ghci"
             void $ expect h gp
             T.strip <$> exchange h gp "1 + 2")
             `shouldReturn` "3"
 
     describe "ghci error" $ do
         it "ghci error" $ (do
-            h <- spawn "ghci"
+            h <- spawn Nothing "ghci"
             void $ expect h gp
             T.strip <$> exchange h gp "a")
             `shouldReturn` "<interactive>:1:1: error: [GHC-88464] Variable not in scope: a"
@@ -51,7 +51,7 @@ pexpectTest = describe "pexpect" $ do
     describe "python exchange" $ do
         it "exchange" $ (do
             let pp = ">>> "
-            h <- spawn "python3"
+            h <- spawn Nothing "python3"
             void $ expect h pp
             T.strip <$> exchange h pp "1 + 2")
             `shouldReturn` "3"
@@ -59,7 +59,7 @@ pexpectTest = describe "pexpect" $ do
     describe "exchange 3" $ do
         it "exchange" $ do
             let pp = ">>> "
-            h <- spawn "python3"
+            h <- spawn Nothing "python3"
             void $ expect h pp
             T.strip <$> exchange h pp "1 + 2"
               `shouldReturn` "3"

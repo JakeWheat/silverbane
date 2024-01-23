@@ -146,17 +146,15 @@ stderrline4
 ~~~~
 |], ["process didn't exit with non zero"])
 
--- todo: come back to this
-    
-{-    ,("check relative dir", [R.r|
-~~~~{et-run='cat testfile; ls -l testfile'}
-stuff
+
+    ,("testfiles/check-relative-dir", [R.r|
+~~~~{et-run='cat testfile'}
+testfilecontent
 ~~~~
-|], [])-}
+|], [])
 
     --------------------------------------
-    -- sessions
-
+    -- simple sessions
 
     ,("simple session 1", [R.r|
 ~~~~{et-session='python3' et-prompt='>>> '}
@@ -255,7 +253,6 @@ check variations on prompts which don't output anything
 ~~~~
 |], [])
 
-        
         ,("simple session fail 1", [R.r|
 ~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
 >>> 1 + 2
@@ -263,6 +260,19 @@ check variations on prompts which don't output anything
 ~~~~
 |], ["output doesn't match"])
 
+
+        ,("testfiles/session-relative-dir", [R.r|
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+>>> f = open('testfile')
+>>> print(f.read())
+testfilecontent
+~~~~
+|], [])
+
+        
+    --------------------------------------
+    -- session continue
+        
     -- todo: check relative dir in sessions
 
         ,("session continue", [R.r|
@@ -354,12 +364,43 @@ $ python3
 |], ["output doesn't match"])
 
 
-    -- session run fails
+    --------------------------------------
+    -- session assorted anomalies
+        
+        ,("session run fails", [R.r|
+~~~~{et-session='wython3' et-prompt='>>> '}
+>>> print("line1\nline2\nline3")
+line1
+line2
+line3
+~~~~
+|], ["session process didn't start"])
+
+        -- todo: catch this specific situation and give a better error message
+        ,("continue after session run fails", [R.r|
+~~~~{et-session='wython3' et-prompt='>>> '}
+>>> print("line1\nline2\nline3")
+line1
+line2
+line3
+~~~~
+
+~~~~{et-continue}
+>>> 3 + 4
+8
+~~~~
+
+|], ["session process didn't start", "continue without previous session" ])
 
     -- session exiting unexpectedly in the middle
 
     -- session exiting unexpectedly in continue
 
+    -- at the moment, you'll catch both the above because the output
+    -- won't match, but it will be confusing unless you can guess
+    -- that it's because the process exited early
+
+    --------------------------------------
     -- filters
 
         ,("filter", [R.r|

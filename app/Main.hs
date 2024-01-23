@@ -13,6 +13,7 @@ import qualified Data.Text.IO as T
 
 import qualified ExpectTest as E
 import System.Environment (getArgs)
+import GHC.Stack (HasCallStack)
 
 main :: IO ()
 main = do
@@ -27,7 +28,7 @@ main = do
     flip mapM_ es $ \e -> putStrLn $ E.prettyExpectError e
 
 -- todo: add callstack
-error :: Text -> a
+error :: HasCallStack => Text -> a
 error = Pr.error . T.unpack
 
 show :: Show a => a -> Text

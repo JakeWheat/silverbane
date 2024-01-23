@@ -14,6 +14,7 @@ option 2: replace this code completely
 -}
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 module Pexpect
     (Pexpect
     ,initPexpect
@@ -29,16 +30,22 @@ import Data.Text (Text)
 import Control.Monad (void)
 
 import qualified Data.Text as T
+import GHC.Stack (HasCallStack)
 
 data Pexpect = Pexpect Py.PyObject
+
 
 initPexpect :: IO ()
 initPexpect = do
     Py.initialize
     void $ e <$> Py.script "import pexpect"
 
-spawn :: Text -> IO Pexpect
-spawn cmd =  do
+spawn :: Maybe Text -> Text -> IO Pexpect
+spawn (Just cwd) cmd =  do
+    args <- sequence [Py.toPyObject cmd, Py.toPyObject cwd]
+    fn <- e <$> Py.eval "lambda x, y: pexpect.spawn(x, encoding='utf=8', cwd=y)"
+    Pexpect <$> e <$> Py.app fn args
+spawn Nothing cmd =  do
     args <- sequence [Py.toPyObject cmd]
     fn <- e <$> Py.eval "lambda x: pexpect.spawn(x, encoding='utf=8')"
     Pexpect <$> e <$> Py.app fn args
@@ -70,8 +77,9 @@ close (Pexpect p) = do
            else Just . e <$> Py.fromPyObject v2
     pure (v1', v2')
 
-e :: Either Py.PythonError a -> a
-e = either (error . show) id
+
+e :: HasCallStack => Either Py.PythonError a -> a
+e !a = either (error . show) id a
 
 exchange :: Pexpect -> Text -> Text -> IO Text
 exchange p prompt sl = do
