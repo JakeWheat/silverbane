@@ -1,4 +1,15 @@
+{-
 
+TODO:
+
+use a mock for pexpect for most of this testing, it will be much much
+faster and allow obvious direct testing of all the variations
+
+then do a trivial end to end test
+
+and see if there's enough direct pexpect tests
+
+-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 module TestExpectTest (expectTestTests) where
@@ -284,12 +295,8 @@ $ python3
     -- session exiting unexpectedly in continue
 
     -- filters
-{-from random import random 
-   
-# Prints random item 
-print(random())-}
 
-   {-     ,("filter", [R.r|
+        ,("filter", [R.r|
 
 The point of filter is if you have a small amount of variability in
 the output, and you want to ignore that isolated bit. Inspired by
@@ -297,30 +304,32 @@ checking the output of hspec, which includes a random seed which
 changes when there's a failure, and also includes the time the
 tests took.
 
-~~~~{et-session et-prompt=">>> " et-no-initial-text}
+Currently uses regexes. This could be extended if it's too limiting.
+
+It replaces the filter regex matches with the to text before comparing.
+It does this with both the document text and the text coming from
+running the spawnee. This isn't ideal when you want to write a prompt,
+then run this program, get an error, and then paste the correct text into
+your document, which is a way of working that should be supported.
+
+~~~~{et-session et-prompt=">>> " et-no-initial-text et-filter="my random = 0\.[0-9]+" et-to='my random = 0.42353301245135155'}
 $ python3
 >>> import random
->>>
+>>> print(f"This is an example, my random = {random.random()}, more stuff")
+This is an example, my random = 0.12341234123412345, more stuff
 ~~~~
 
-~~~~{et-continue}
->>> 3 + 4
-8
-~~~~
-|], ["output doesn't match"])
+|], [])
 
         ,("check filter stays in its lane", [R.r|
-~~~~{et-session et-prompt=">>> " et-no-initial-text}
+~~~~{et-session et-prompt=">>> " et-no-initial-text et-filter="my random = 0\.[0-9]+" et-to='my random = 0.42353301245135155'}
 $ python3
->>> 1 + 2
-3
+>>> import random
+>>> print(f"This is an example, my random = {random.random()}, more stuff")
+This is an example, my random = 0.12341234123412345, more stuff1
 ~~~~
 
-~~~~{et-continue}
->>> 3 + 4
-8
-~~~~
-|], ["output doesn't match"])-}
+|], ["output doesn't match"])
 
 
     ]

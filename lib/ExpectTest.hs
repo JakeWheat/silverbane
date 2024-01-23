@@ -22,6 +22,7 @@ import qualified Pexpect as P
 import Data.Char (isSpace, ord)
 import Control.Exception.Safe 
 import Debug.Trace (trace)
+import qualified RegexReplace as Re
 
 import System.FilePath
 
@@ -76,8 +77,12 @@ expectTest fn input = do
                 pure [Prompt p, Reply rep]
             pure $ concat rs
         -- todo: strip the whitespace more accurately
-        compareSessions tgt sls =
-            let debugShow :: Text -> Text -> a -> a
+        compareSessions filters tgt sls =
+            let filterf :: Text -> Text
+                filterf =
+                    let mf (re,sub) = Re.substitute (Re.compile re) sub
+                    in foldr (.) id $ map mf filters
+                debugShow :: Text -> Text -> a -> a
                 debugShow _a _b x =
                     if showDebugMismatches
                     then let comparebits a b =
@@ -108,9 +113,11 @@ expectTest fn input = do
                     then f ts bs
                     else debugShow t b $ False
                 f (Reply t:ts) (Reply b:bs) =
-                    if T.strip t == T.strip b
-                    then f ts bs
-                    else debugShow t b $ False
+                    let prepReply = filterf . T.strip
+                    in --trace (T.unpack (prepReply t <> "\n\n" <> prepReply b)) $
+                        if prepReply t == prepReply b
+                        then f ts bs
+                        else debugShow t b $ False
                 f _a _b = debugShow (show (_a,_b)) "" False
                 -- replace prompt x, Reply all isspace, Prompt y with prompt x, prompt y
                 f2 (Prompt x : Reply y : Prompt z : xs)
@@ -173,7 +180,7 @@ expectTest fn input = do
             old <- readIORef currentSpawn
             case old of
                 Nothing -> pure ()
-                Just (p,_) -> do
+                Just (p,_,_) -> do
                     void $ P.close p
                     writeIORef currentSpawn Nothing
             -- run the command
@@ -186,20 +193,20 @@ expectTest fn input = do
             let showIt = T.unlines $ flip map tgt $ \case
                     Prompt p -> esPrompt et <> T.strip p
                     Reply r -> T.strip r
-            if compareSessions tgt (esSessionLines et)
+            if compareSessions (esFilters et) tgt (esSessionLines et)
                 then pure ()
                 else addError (esStartLine et) $ "output doesn't match:\n" <> showIt
-            writeIORef currentSpawn (Just (h,esPrompt et))
+            writeIORef currentSpawn (Just (h,esPrompt et, esFilters et))
         FcContinue et -> do
             mh <- readIORef currentSpawn
             case mh of
                 Nothing -> addError (ecStartLine et) "continue without previous session"
-                Just (h, prompt) -> do
+                Just (h, prompt, filters) -> do
                     tgt <- runSession h prompt (ecSessionLines et)
                     let showIt = T.unlines $ flip map tgt $ \case
                             Prompt p -> prompt <> T.strip p
                             Reply r -> T.strip r
-                    if compareSessions tgt (ecSessionLines et)
+                    if compareSessions filters tgt (ecSessionLines et)
                         then pure ()
                         else addError (ecStartLine et) $ "output doesn't match:\n" <> showIt
     es <- readIORef esr

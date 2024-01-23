@@ -28,6 +28,7 @@ library
     exposed-modules:  Pexpect
                       Parse
                       ExpectTest
+                      RegexReplace
     hs-source-dirs:   lib
     build-depends:    base ^>=4.19.0.0,
                       python-wrapper,
@@ -39,6 +40,7 @@ library
                       process,
                       filepath,
                       safe-exceptions,
+                      pcre-utils,
 
 executable expect-doctest
     import:           commonstuff
