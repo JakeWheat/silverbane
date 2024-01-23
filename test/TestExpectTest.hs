@@ -158,6 +158,27 @@ hello
 ~~~~
 |], [])
 
+        ,("simple session 6", [R.r|
+check variations on prompts which don't output anything
+
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+>>> import string
+>>> string.capwords('test')
+'Test'
+~~~~
+
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+
+>>> import string
+
+>>> string.capwords('test2')
+
+'Test2'
+
+~~~~
+|], [])
+
+        
         ,("simple session fail 1", [R.r|
 ~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
 >>> 1 + 2
@@ -263,6 +284,44 @@ $ python3
     -- session exiting unexpectedly in continue
 
     -- filters
+{-from random import random 
+   
+# Prints random item 
+print(random())-}
+
+   {-     ,("filter", [R.r|
+
+The point of filter is if you have a small amount of variability in
+the output, and you want to ignore that isolated bit. Inspired by
+checking the output of hspec, which includes a random seed which
+changes when there's a failure, and also includes the time the
+tests took.
+
+~~~~{et-session et-prompt=">>> " et-no-initial-text}
+$ python3
+>>> import random
+>>>
+~~~~
+
+~~~~{et-continue}
+>>> 3 + 4
+8
+~~~~
+|], ["output doesn't match"])
+
+        ,("check filter stays in its lane", [R.r|
+~~~~{et-session et-prompt=">>> " et-no-initial-text}
+$ python3
+>>> 1 + 2
+3
+~~~~
+
+~~~~{et-continue}
+>>> 3 + 4
+8
+~~~~
+|], ["output doesn't match"])-}
+
 
     ]
 

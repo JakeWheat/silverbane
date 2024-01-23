@@ -112,11 +112,22 @@ expectTest fn input = do
                     then f ts bs
                     else debugShow t b $ False
                 f _a _b = debugShow (show (_a,_b)) "" False
+                -- replace prompt x, Reply all isspace, Prompt y with prompt x, prompt y
+                f2 (Prompt x : Reply y : Prompt z : xs)
+                    | T.all isSpace y =
+                      f2 (Prompt x : Prompt z : xs)
+                f2 (x:xs) = x : f2 xs
+                f2 [] = []
                 -- ignore leading replies that are all whitespace
                 f1 (Reply t:ts) bs | T.all isSpace t = f1 ts bs
                 f1 ts (Reply b:bs) | T.all isSpace b = f1 ts bs
-                f1 ts bs = f ts bs
-            in f1 tgt sls
+                f1 ts bs = f (f2 ts) (f2 bs)
+            in if f1 tgt sls
+               then True
+               else if showDebugMismatches
+                    then trace (T.unpack ("program produced:\n" <> T.unlines (map show tgt) <> "\n\n/=\n\n"
+                                <> "document says:\n" <> T.unlines (map show sls))) False
+                    else False
 
 
     -- lifes too short
