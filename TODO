@@ -1,0 +1,81 @@
+Documentation, specification, plenty of examples
+
+Nice command line args handler, read from stdin option
+
+the code needs a lot of refactoring, it's a mess
+
+lots more tests, check more parse errors and source positions
+
+check the document processing mainly with a mock for the pexpect wrapper
+  -> the tests will run much faster, and will be able to dial in
+  exactly what you want to test
+  and to be able to directly test what's being send to the exes
+  if do this, might need some more direct pexpect tests
+  and can add a full end to end test as well
+
+implement reliable killing of spawned processes if this process exits
+  + tests
+
+report errors better when a session process exits in the middle of a
+session
+
+document and implement the insignificant whitespace handling properly
+
+improve the python-wrapper -> the api sucks, and it doesn't have
+  enough anomaly handling. it probably needs more api as well,
+  one that already came up is an api function to load a module
+  and get it as a value, without messing with the python namespace,
+  this must be possible
+
+improve the ux for test failures, a big one is improving the output
+when a larger session doesn't match
+-> break it up and isolate non matching prompts?
+or run a diff on the render?
+want a good ux for fixing the docs when the responses change,
+and for initial population of docs just by writing prompts and
+then copying from the errors you get - like a poor man's notebook
+
+debugging tools for debugging when you get mismatches, or weird
+errors with the spawned exes/interactions
+  logs of what happens when running
+  dump the parsed instructions
+
+ability to output an entirely new document with all the files,
+outputs and replies populated with the actual responses
+-> can be used to run a diff on your current document
+or replace it if you are lazy and like risks
+
+inline defaults and overrides + command line defaults + config system
+
+"block comment" syntax, to disable processing for large sections of a
+document -> to help with development and debugging documents
+
+ability to alter the environment specifically before running an exe
+
+more flexibility in the specific syntax? if theres a need
+or ability to add new syntax front ends:
+change the syntax to be more clearly what the test assertions need,
+then it becomes easier to swap in a different parser or other kind
+of driver
+
+another area to tweak is ability to add arbitrary filters
+  when regexes aren't cutting it
+  - via python functions, or haskell functions for instance?
+
+add actual notebook style operation (you could even try to implement a
+wysiwyg style thing to see the rendered html). This can work like
+regular notebooks, with the exception that it doesn't unconditionally
+replace the output/replies, but highlights differences inline or
+something. Can you adapt jupyter to work this way?
+
+named sessions - then you can interleave them
+
+ability to assert specific exit code or signal
+
+a variation on this tool is a syntax to expose more pexpect api then
+you can write interactive documented tests with more arbitrary pexpect
+api use
+
+it would be nice to find more interactive ways of working
+  -> capture outputs then interactively tune the filter regexes for instance
+  how do you do a project specific uat for the filters?

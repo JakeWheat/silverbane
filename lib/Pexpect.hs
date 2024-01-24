@@ -43,7 +43,7 @@ initPexpect = do
 spawn :: Maybe Text -> Text -> IO Pexpect
 spawn (Just cwd) cmd =  do
     args <- sequence [Py.toPyObject cmd, Py.toPyObject cwd]
-    fn <- e <$> Py.eval "lambda x, y: pexpect.spawn(x, encoding='utf=8', cwd=y)"
+    fn <- e <$> Py.eval "lambda x, y: pexpect.spawn(x, encoding='utf=8', cwd=y, echo=False)"
     Pexpect <$> e <$> Py.app fn args
 spawn Nothing cmd =  do
     args <- sequence [Py.toPyObject cmd]
@@ -90,6 +90,8 @@ exchange p prompt sl = do
     -- so linux line endings only for now
     let rep1 = T.filter (/= '\r') rep
     -- unbelievable hacky, this is not very robust
+    -- python doesn't seem to need it, but ghci does, not sure why
+    -- should get to the bottom of it
     pure $ if T.stripEnd sl `T.isPrefixOf` T.stripStart rep1
         then T.drop (T.length $ T.stripEnd sl) $ T.stripStart rep1
         else rep1

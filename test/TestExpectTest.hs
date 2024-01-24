@@ -269,6 +269,14 @@ testfilecontent
 ~~~~
 |], [])
 
+
+        ,("long line", [R.r|
+~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
+ghci> unwords ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"]
+"one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+~~~~
+|], [])
+
         
     --------------------------------------
     -- session continue
