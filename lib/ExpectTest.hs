@@ -25,7 +25,6 @@ import Data.Char (isSpace, ord)
 import Control.Exception.Safe 
 import Debug.Trace (trace)
 import qualified RegexReplace as Re
-import Data.Maybe (fromMaybe)
 
 import System.FilePath
 
@@ -168,30 +167,26 @@ expectTest fn input = do
                      addError (efStartLine et) $
                          "file not found: " <> efFilename et
                          <> " (expected at " <> fn' <> " )"
-        FcRun et ->
-            case map T.unpack $ T.words (erCmd et) of
-                (c:cs) -> do
-                    let cwd = Just $ maybe (takeDirectory fn)
-                            ((takeDirectory fn </>) . T.unpack)
-                            (erCwd et)
-                    etgt <- tryAny $ myReadProcess cwd c cs ""
-                    case etgt of
-                        Left e ->
-                            addError (erStartLine et) $ "run failed with unexpected issue: " <> show e
-                        Right (ExitSuccess, tgt)
-                            | not (erZeroExit et) ->
-                              addError (erStartLine et) $ "process didn't exit with non zero:\n" <> T.pack tgt
-                            | erBody et == T.pack tgt -> pure ()
-                            | otherwise ->
-                              addError (erStartLine et) $ "output doesn't match: " <> T.pack tgt
-                        Right (ExitFailure {}, tgt)
-                            | erZeroExit et ->
-                              addError (erStartLine et) $ "process exited with non zero:\n" <> T.pack tgt
-                            | erBody et == T.pack tgt -> pure ()
-                            | otherwise ->
-                              addError (erStartLine et) $ "output doesn't match: " <> T.pack tgt
-
-                [] -> addError (erStartLine et) "no command given"
+        FcRun et -> do
+            let cwd = Just $ maybe (takeDirectory fn)
+                    ((takeDirectory fn </>) . T.unpack)
+                    (erCwd et)
+            etgt <- tryAny $ myReadProcess cwd (T.unpack $ erCmd et) ""
+            case etgt of
+                Left e ->
+                    addError (erStartLine et) $ "run failed with unexpected issue: " <> show e
+                Right (ExitSuccess, tgt)
+                    | not (erZeroExit et) ->
+                      addError (erStartLine et) $ "process didn't exit with non zero:\n" <> T.pack tgt
+                    | erBody et == T.pack tgt -> pure ()
+                    | otherwise ->
+                      addError (erStartLine et) $ "output doesn't match:\n" <> T.pack tgt
+                Right (ExitFailure {}, tgt)
+                    | erZeroExit et ->
+                      addError (erStartLine et) $ "process exited with non zero:\n" <> T.pack tgt
+                    | erBody et == T.pack tgt -> pure ()
+                    | otherwise ->
+                      addError (erStartLine et) $ "output doesn't match:\n" <> T.pack tgt
         FcSession et -> do
             old <- readIORef currentSpawn
             case old of

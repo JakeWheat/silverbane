@@ -15,6 +15,9 @@ import qualified ExpectTest as E
 import System.Environment (getArgs)
 import GHC.Stack (HasCallStack)
 
+import System.Exit (exitFailure)
+import Control.Monad (unless)
+
 main :: IO ()
 main = do
 
@@ -26,6 +29,7 @@ main = do
     input <- T.readFile fn
     es <- E.expectTest fn input
     flip mapM_ es $ \e -> putStrLn $ E.prettyExpectError e
+    unless (null es) $ exitFailure
 
 -- todo: add callstack
 error :: HasCallStack => Text -> a

@@ -43,6 +43,7 @@ initPexpect = do
 spawn :: Maybe Text -> Text -> IO Pexpect
 spawn (Just cwd) cmd =  do
     args <- sequence [Py.toPyObject cmd, Py.toPyObject cwd]
+    --putStrLn $ "spawn: " <> T.unpack cmd
     fn <- e <$> Py.eval "lambda x, y: pexpect.spawn(x, encoding='utf=8', cwd=y, echo=False)"
     Pexpect <$> e <$> Py.app fn args
 spawn Nothing cmd =  do

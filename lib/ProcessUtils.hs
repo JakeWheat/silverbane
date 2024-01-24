@@ -7,7 +7,7 @@ import System.Process
     (CreateProcess(..)
     ,createPipe
     ,StdStream(..)
-    ,proc
+    ,shell
     ,waitForProcess
     ,createProcess
     )
@@ -21,19 +21,17 @@ import qualified Control.Concurrent.Async as A
 import Control.DeepSeq (rnf)
 import qualified Control.Exception as C
 
-myReadProcess ::  Maybe String -> String -> [String] -> String -> IO (ExitCode, String)
+myReadProcess ::  Maybe String -> String -> String -> IO (ExitCode, String)
 myReadProcess
     newwd
     -- ^ optional new working directory to execute process in
-    cmd
-    -- ^ process name
-    args
-    -- ^ process args
+    cmdline
+    -- ^ process command line
     input
     -- ^ standard input
     = do
     (hr, hw) <- createPipe
-    cp <- createProcess (proc cmd args)
+    cp <- createProcess (shell cmdline)
                                        {cwd = newwd
                                        , std_out = UseHandle hw
                                        , std_err = UseHandle hw

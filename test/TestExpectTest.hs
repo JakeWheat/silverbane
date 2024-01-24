@@ -91,7 +91,7 @@ stuff
 ~~~~{et-run='echo1 stuff'}
 stuff
 ~~~~
-|], ["run failed with unexpected issue"])
+|], ["echo1: not found"])
 
     
     ,("check interleaved stdout and err", [R.r|
@@ -177,7 +177,15 @@ testfilecontent
 ~~~~
 |], [])
 
-    
+     
+    ,("run with quoted args", [R.r|
+~~~~{et-run='testfiles/echoscript.py "this is one arg" "this is another"'}
+this is one arg
+this is another
+~~~~
+|], [])
+
+    -- todo: add test for session with quoted args
     
     --------------------------------------
     -- simple sessions
@@ -339,7 +347,28 @@ FileNotFoundError: [Errno 2] No such file or directory: 'testfile'
 ~~~~
 |], [])
 
-        
+    ,("session with args pre sanity", [R.r|
+~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
+ghci> import Data.Text
+ghci> "test" :: Text
+<interactive>:2:1: error: [GHC-83865]
+    • Couldn't match type ‘[Char]’ with ‘Text’
+      Expected: Text
+        Actual: String
+    • In the expression: "test" :: Text
+      In an equation for ‘it’: it = "test" :: Text
+~~~~
+|], [])
+
+    ,("session with args", [R.r|
+~~~~{et-session='ghci -XOverloadedStrings' et-prompt='ghci> ' et-no-initial-text}
+ghci> import Data.Text
+ghci> "test" :: Text
+"test"
+~~~~
+|], [])
+
+
     --------------------------------------
     -- session continue
         
