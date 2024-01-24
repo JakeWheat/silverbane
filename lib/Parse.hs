@@ -198,7 +198,7 @@ import           Text.Megaparsec                 (ParseErrorBundle, ParsecT,
                                                   lookAhead, manyTill,
                                                   getSourcePos, sourceLine,unPos,
                                                   runParserT,option
-                                                    
+                                                    ,satisfy,notFollowedBy,
                                                  )
 import           Text.Megaparsec.Char            (char)
 import qualified Control.Monad.Permutations as P
@@ -393,23 +393,14 @@ so, if it's valid
 
 nonnewlinewhitespace :: Parser ()
 nonnewlinewhitespace =
-    void $ takeWhile1P (Just "whitespace") (\x -> isSpace x && x /= '\n')
+    void $ takeWhile1P (Just "whitespace") isNonNewlineWhitespace
+
+isNonNewlineWhitespace :: Char -> Bool
+isNonNewlineWhitespace c = isSpace c && c /= '\n'
 
 lexeme :: Parser a -> Parser a
 lexeme p = p <* void (optional nonnewlinewhitespace)
 
-attribute :: Parser (Text, Maybe Text)
-attribute =
-    lexeme ((,)
-        <$> (iden <?> "attributeName")
-        <*> optional (char '=' *> ((iden <|> quoted <|> doubleQuoted) <?> "attribute value")))
-  where
-    iden = takeWhile1P (Just "iden char") unquotedChar
-    between' c = between (char c) (char c)
-    quoted = between' '\'' $ takeWhileP (Just "not ' or \n") (`notElem` ("'\n" :: [Char]))
-    doubleQuoted = between' '"' $ takeWhileP (Just "not \" or \n") (`notElem` ("\"\n" :: [Char]))
-    -- don't let any of the unquoted chars be { or }
-    unquotedChar = (`notElem` ("\"'>/={} \t\n" :: [Char]))
 
 -- returns the line including the newline at the end if there is one
 -- (this is not very efficient, but good enough for now)
@@ -431,43 +422,49 @@ header = do
         choice
             [do
              vh <- choice
-                  [VHFilePrefix <$> namedValueAttribute "et-file-prefix"
-                  ,VHFile <$> namedValueAttribute "et-file"
+                  [VHFilePrefix <$> attributeRequiredValue "et-file-prefix"
+                  ,VHFile <$> attributeRequiredValue "et-file"
                   ,do
-                   x <- namedAttribute "et-run"
+                   x <- attributeOptionalValue "et-run"
                    (expectZeroExit,mcwd) <-
                         P.runPermutation $ (,)
-                        <$> P.toPermutation (option True (False <$ noValueAttribute "et-non-zero-exit"))
-                        <*> P.toPermutation (optional (namedValueAttribute "et-cwd"))
+                        <$> P.toPermutation (option True (False <$ attributeNoValue "et-non-zero-exit"))
+                        <*> P.toPermutation (optional (attributeRequiredValue "et-cwd"))
                    
                    case x of
                        Nothing -> pure $ VHRunInline mcwd expectZeroExit
                        Just v -> pure $ VHRun mcwd v expectZeroExit
                   ,vhSession
-                  ,VHContinue <$ noValueAttribute "et-continue"]
+                  ,VHContinue <$ attributeNoValue "et-continue"]
              endingAttributes (Just vh)
             ,errorAttribute
-            ,attribute *> startingAttributes
+            ,anyAttribute *> startingAttributes
             ,pure Nothing]
     vhSession = do
-        s <- namedAttribute "et-session"
-        pr <- namedValueAttribute "et-prompt"
+        s <- attributeOptionalValue "et-session"
+        pr <- attributeRequiredValue "et-prompt"
 
-        let noInitialText = False <$ noValueAttribute "et-no-initial-text"
+        let noInitialText = False <$ attributeNoValue "et-no-initial-text"
             etfilter =
-                (,) <$> namedValueAttribute "et-filter"
-                <*> namedValueAttribute "et-to"
+                (,) <$> attributeRequiredValue "et-filter"
+                <*> attributeRequiredValue "et-to"
         (itx, mcwd, fs) <- P.runPermutation $
             (,,) <$> P.toPermutationWithDefault Nothing (Just <$> noInitialText)
-                <*> P.toPermutationWithDefault Nothing (Just <$> namedValueAttribute "et-cwd")
+                <*> P.toPermutationWithDefault Nothing (Just <$> attributeRequiredValue "et-cwd")
                 <*> P.toPermutation (many etfilter)
 
         pure $ VHSession $ SessionOptions mcwd s pr itx fs
-    -- todo: match any recognised attribute and error
+
+    endingAttributes :: Maybe ValidatedHeader -> Parser (Maybe ValidatedHeader)
+    endingAttributes mvh = choice
+        [errorAttribute
+        ,anyAttribute *> endingAttributes mvh
+        ,pure mvh]
+    -- match any recognised attribute and error
     errorAttribute = do
         o <- getOffset
         choice $
-            map (\x -> namedAttribute x *>
+            map (\x -> attributeOptionalValue x *>
                     region (setErrorOffset o) (fail ("unexpected " <> T.unpack x)))
             ["et-file"
             ,"et-file-prefix"
@@ -482,28 +479,60 @@ header = do
             ,"et-non-zero-exit"
             ,"et-cwd"
             ]
+
+    --------------------------------------
+    -- attribute parsing
+
+    anyAttribute = lexeme $ do
+        void (iden <?> "attributeName")
+        void $ optional $ equalsAndOptionalAttributeValue
+
+    attributeNoValue :: Text -> Parser ()
+    attributeNoValue nm = lexeme $ do
+        specificIden nm
+        choice
+            [do
+             void $ char '='
+             choice
+                [satisfy unquotedChar *> fail ("attribute should not have value: " <> T.unpack nm)
+                ,pure ()]
+            ,pure ()]
+
+    attributeRequiredValue :: Text -> Parser Text
+    attributeRequiredValue nm = lexeme $ do
+        specificIden nm
+        void $ char '='
+        attributeValue
+
+    attributeOptionalValue :: Text -> Parser (Maybe Text)
+    attributeOptionalValue nm = lexeme $ do
+        specificIden nm
+        equalsAndOptionalAttributeValue
     
-    namedAttribute :: Text -> Parser (Maybe Text)
-    namedAttribute nm =
-        lexeme (chunk nm *> optional (char '=' *> attributeValue))
-    namedValueAttribute :: Text -> Parser Text
-    namedValueAttribute nm = do
-        lexeme (chunk nm *> char '=' *> attributeValue)
-    noValueAttribute :: Text -> Parser ()
-    noValueAttribute nm =
-        lexeme (chunk nm *> choice
-          [do
-           o <- getOffset
-           char '=' *> region (setErrorOffset o) (fail ("attribute should not have value: " <> T.unpack nm))
-          ,pure ()])
-    endingAttributes :: Maybe ValidatedHeader -> Parser (Maybe ValidatedHeader)
-    endingAttributes mvh = choice
-        [errorAttribute
-        ,lexeme attribute *> endingAttributes mvh
-        ,pure mvh]
+    equalsAndOptionalAttributeValue :: Parser (Maybe Text)
+    equalsAndOptionalAttributeValue = lexeme $ do
+        choice
+            [do
+             void $ char '='
+             choice [Nothing <$ emptyAttributeValue
+                    ,Just <$> attributeValue ] <?> "attribute value"
+            ,pure Nothing]
+    emptyAttributeValue :: Parser ()
+    emptyAttributeValue = lexeme $
+        -- parse attr= with nothing following the = as empty attribute
+        -- the trick is, to make sure the = is followed by a valid char
+        -- this has to be } or whitespace
+        void (lookAhead (char '}')) <|> void (lookAhead (satisfy isNonNewlineWhitespace <?> "whitespace"))
+
     attributeValue = (iden <|> quoted <|> doubleQuoted) <?> "attribute value"
+
+    specificIden :: Text -> Parser ()
+    specificIden nm = do
+        void (chunk nm) <* notFollowedBy (satisfy unquotedChar)
+
     iden :: Parser Text
     iden = takeWhile1P (Just "iden char") unquotedChar
+    
     between' c = between (char c) (char c)
     quoted = between' '\'' $ takeWhileP (Just "character") (`notElem` ("'\n" :: [Char]))
     doubleQuoted = between' '"' $ takeWhileP (Just "character") (`notElem` ("\"\n" :: [Char]))

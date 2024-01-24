@@ -136,6 +136,11 @@ validatedHeaders =
     
     ,("~~~~{et-continue}", VHContinue)
 
+    -- pandoc won't parse without the equals, so allow this as
+    -- alternative no value attribute syntax (it was probably
+    -- parsing to the wrong thing before also)
+    ,("~~~~{et-continue=}", VHContinue)
+
     ,("~~~~{.sql et-file=filename}", VHFile "filename")
     ,("~~~~{.sql et-file=filename #myclass stuff}", VHFile "filename")
     ]
