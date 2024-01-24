@@ -25,6 +25,7 @@ import Data.Char (isSpace, ord)
 import Control.Exception.Safe 
 import Debug.Trace (trace)
 import qualified RegexReplace as Re
+import Data.Maybe (fromMaybe)
 
 import System.FilePath
 
@@ -148,7 +149,6 @@ expectTest fn input = do
             -- todo: set a ioref flag, so it can get the process exit code right
             modifyIORef esr (ExpectTestError fn ln msg:)
 
-    
     flip mapM_ ps $ \case
         FcFile et -> do
             -- read the file
@@ -171,7 +171,10 @@ expectTest fn input = do
         FcRun et ->
             case map T.unpack $ T.words (erCmd et) of
                 (c:cs) -> do
-                    etgt <- tryAny $ myReadProcess (Just $ takeDirectory fn) c cs ""
+                    let cwd = Just $ maybe (takeDirectory fn)
+                            ((takeDirectory fn </>) . T.unpack)
+                            (erCwd et)
+                    etgt <- tryAny $ myReadProcess cwd c cs ""
                     case etgt of
                         Left e ->
                             addError (erStartLine et) $ "run failed with unexpected issue: " <> show e
@@ -198,7 +201,10 @@ expectTest fn input = do
                     writeIORef currentSpawn Nothing
             -- run the command
             eh <- tryAny $ do
-                h <- P.spawn (Just $ T.pack $ takeDirectory fn) (esCmd et)
+                let cwd = Just . T.pack $ maybe (takeDirectory fn)
+                        ((takeDirectory fn </>) . T.unpack)
+                        (esCwd et)
+                h <- P.spawn cwd (esCmd et)
                 -- no idea how to get this so it catches the exception
                 -- properly without this
                 initialText <- P.expect h (esPrompt et)

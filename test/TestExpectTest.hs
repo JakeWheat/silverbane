@@ -40,7 +40,7 @@ makeExpectTestTest nm src tgt =
 expectTestExamples :: [(Text,Text,[Text])]
 expectTestExamples =
     [--------------------------------------
-     --  file blocks
+     --  file tests
      ("file", [R.r|
 
 ~~~~{et-file='testfiles/testfile'}
@@ -79,7 +79,7 @@ testfilecontent
 |], [])
 
     --------------------------------------
-    -- run process blocks
+    -- run process
     
     ,("simple run", [R.r|
 ~~~~{et-run='echo stuff'}
@@ -153,6 +153,32 @@ testfilecontent
 ~~~~
 |], [])
 
+    -- check cwd
+
+     
+    ,("testfiles/check-relative-dir-should-fail", [R.r|
+check it can't find this file any more
+~~~~{et-run='cat testfile' et-cwd='..'}
+testfilecontent
+~~~~
+|], ["testfile: No such file or directory"])
+
+    -- test here that it doesn't work without cwd
+    ,("check-relative-dir-doublecheck", [R.r|
+~~~~{et-run='cat testfile'}
+testfilecontent
+~~~~
+|], ["testfile: No such file or directory"])
+
+    
+    ,("check-relative-dir-succeed", [R.r|
+~~~~{et-run='cat testfile' et-cwd='testfiles/'}
+testfilecontent
+~~~~
+|], [])
+
+    
+    
     --------------------------------------
     -- simple sessions
 
@@ -274,6 +300,42 @@ testfilecontent
 ~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
 ghci> unwords ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"]
 "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+~~~~
+|], [])
+
+
+   {- ,("session relative dir", [R.r|
+~~~~{et-session='python3' et-prompt='>>> '}
+Python 3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> 
+~~~~
+|], [])-}
+
+    ,("testfiles/session-relative-dir-fail", [R.r|
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text et-cwd='..'} 
+>>> f = open('testfile')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: 'testfile'
+~~~~
+|], [])
+
+    -- test here that it doesn't work without cwd
+    ,("session-relative-dir-fail", [R.r|
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+>>> f = open('testfile')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: 'testfile'
+~~~~
+|], [])
+
+    ,("check-session-relative-dir-succeed", [R.r|
+~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text et-cwd='testfiles'}
+>>> f = open('testfile')
+>>> f.read()
+'testfilecontent\n'
 ~~~~
 |], [])
 

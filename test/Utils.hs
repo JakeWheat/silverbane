@@ -41,19 +41,30 @@ shouldFailContains r errText = case r of
   Right v -> expectationFailure $
       "the parser is expected to fail, but it parsed: " ++ show v
 
+{-
+TODO:
+show unmatched lines from both sides
+
+want to still show the matched ones too because this can help with debugging a test
+-}
 expectErrorsShouldMatch ::
+    HasCallStack =>
     IO [E.ExpectTestError] ->
     [Text] ->
     Expectation
+expectErrorsShouldMatch gotA [] = do
+    got <- gotA
+    let ps = map E.prettyExpectError got
+    unless (null got) $
+        expectationFailure
+        $ "unexpected errors:\n"
+           <> unlines (map T.unpack ps)
 expectErrorsShouldMatch gotA expectedMatches = do
     got <- gotA
     let ps = map E.prettyExpectError got
-        passes =
-            if null expectedMatches
-            then null got
-            else let foundMatch em = or $ map (em `T.isInfixOf`) ps
-                 in and $ map foundMatch expectedMatches
-    -- todo: check there are no extra errors?
+        foundMatch em = or $ map (em `T.isInfixOf`) ps
+        passes = and $ map foundMatch expectedMatches
     unless passes $
-        expectationFailure $ show expectedMatches <> "\n"
+        expectationFailure
+        $ "expected:\n" <> show expectedMatches <> "\ngot:\n"
            <> unlines (map T.unpack ps)

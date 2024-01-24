@@ -230,6 +230,7 @@ data EtFile
 data EtRun
     = EtRun
     {erStartLine :: Int
+    ,erCwd :: Maybe Text
     ,erCmd :: Text
     ,erZeroExit :: Bool
     ,erBody :: Text
@@ -239,6 +240,7 @@ data EtRun
 data EtSession
     = EtSession
     {esStartLine :: Int
+    ,esCwd :: Maybe Text
     ,esCmd :: Text
     ,esPrompt :: Text
     ,esInitialText :: Maybe Bool
@@ -262,15 +264,16 @@ data EtContinue
 data ValidatedHeader
     = VHFile Text
     | VHFilePrefix Text
-    | VHRun Text Bool -- false if non zero exit expected
-    | VHRunInline Bool
+    | VHRun (Maybe Text) Text Bool -- cwd, command, false if non zero exit expected
+    | VHRunInline (Maybe Text) Bool
     | VHSession SessionOptions
     | VHContinue
       deriving (Eq,Show)
 
 data SessionOptions
     = SessionOptions
-    {soCmdline :: Maybe Text -- nothing means inline cmd
+    {soCwd :: Maybe Text
+    ,soCmdline :: Maybe Text -- nothing means inline cmd
     ,soPrompt :: Text
     ,soInitialText :: Maybe Bool
     ,soFilters :: [(Text,Text)]
@@ -432,10 +435,14 @@ header = do
                   ,VHFile <$> namedValueAttribute "et-file"
                   ,do
                    x <- namedAttribute "et-run"
-                   expectZeroExit <- option True (False <$ noValueAttribute "et-non-zero-exit")
+                   (expectZeroExit,mcwd) <-
+                        P.runPermutation $ (,)
+                        <$> P.toPermutation (option True (False <$ noValueAttribute "et-non-zero-exit"))
+                        <*> P.toPermutation (optional (namedValueAttribute "et-cwd"))
+                   
                    case x of
-                       Nothing -> pure $ VHRunInline expectZeroExit
-                       Just v -> pure $ VHRun v expectZeroExit
+                       Nothing -> pure $ VHRunInline mcwd expectZeroExit
+                       Just v -> pure $ VHRun mcwd v expectZeroExit
                   ,vhSession
                   ,VHContinue <$ noValueAttribute "et-continue"]
              endingAttributes (Just vh)
@@ -450,11 +457,12 @@ header = do
             etfilter =
                 (,) <$> namedValueAttribute "et-filter"
                 <*> namedValueAttribute "et-to"
-        (itx, fs) <- P.runPermutation $
-            (,) <$> P.toPermutationWithDefault Nothing (Just <$> noInitialText)
+        (itx, mcwd, fs) <- P.runPermutation $
+            (,,) <$> P.toPermutationWithDefault Nothing (Just <$> noInitialText)
+                <*> P.toPermutationWithDefault Nothing (Just <$> namedValueAttribute "et-cwd")
                 <*> P.toPermutation (many etfilter)
 
-        pure $ VHSession $ SessionOptions s pr itx fs
+        pure $ VHSession $ SessionOptions mcwd s pr itx fs
     -- todo: match any recognised attribute and error
     errorAttribute = do
         o <- getOffset
@@ -472,6 +480,7 @@ header = do
             ,"et-filter"
             ,"et-to"
             ,"et-non-zero-exit"
+            ,"et-cwd"
             ]
     
     namedAttribute :: Text -> Parser (Maybe Text)
@@ -600,13 +609,13 @@ filex = choice
             bdy <- simpleBody
             pure . Just . FcFile $ EtFile o nm bdy
         Just (VHFilePrefix pr) -> Just . FcFile <$> fileInlineBody o pr
-        Just (VHRun cmd zeroExit) -> do
+        Just (VHRun mcwd cmd zeroExit) -> do
             bdy <- simpleBody
-            pure . Just . FcRun $ EtRun o cmd zeroExit bdy
-        Just (VHRunInline zeroExit) -> Just . FcRun <$> runInline o zeroExit
+            pure . Just . FcRun $ EtRun o mcwd cmd zeroExit bdy
+        Just (VHRunInline mcwd zeroExit) -> Just . FcRun <$> runInline o mcwd zeroExit
         Just (VHSession (SessionOptions {..})) -> do
             put (Just soPrompt)
-            Just . FcSession <$> session o soCmdline soPrompt soInitialText soFilters
+            Just . FcSession <$> session o soCwd soCmdline soPrompt soInitialText soFilters
         Just VHContinue -> do
             mprompt <- get
             case mprompt of
@@ -617,8 +626,8 @@ filex = choice
     void (char '\n') <|> eof
     pure Nothing]
 
-session :: Int -> (Maybe Text) -> Text -> Maybe Bool -> [(Text,Text)] -> Parser EtSession
-session ln mcmd prompt mInitialText filters = do
+session :: Int -> Maybe Text -> Maybe Text -> Text -> Maybe Bool -> [(Text,Text)] -> Parser EtSession
+session ln mcwd mcmd prompt mInitialText filters = do
     cmd <- case mcmd of
         Just x -> pure x
         Nothing -> do
@@ -627,7 +636,7 @@ session ln mcmd prompt mInitialText filters = do
             void $ char '\n'
             pure cmdx
     sl <- sessionBody prompt
-    pure $ EtSession ln cmd prompt mInitialText filters sl
+    pure $ EtSession ln mcwd cmd prompt mInitialText filters sl
 
 continue :: Int -> Text -> Parser EtContinue
 continue ln prompt = do
@@ -635,13 +644,13 @@ continue ln prompt = do
     pure $ EtContinue ln sl
 
 
-runInline :: Int -> Bool -> Parser EtRun
-runInline ln zeroExit = do
+runInline :: Int -> Maybe Text -> Bool -> Parser EtRun
+runInline ln mcwd zeroExit = do
     void $ chunk "$ "
     cmd <- takeWhile1P (Just "command line") (/= '\n')
     void $ char '\n'
     bdy <- simpleBody
-    pure $ EtRun ln cmd zeroExit bdy
+    pure $ EtRun ln mcwd cmd zeroExit bdy
     
     
 fileInlineBody :: Int -> Text -> Parser EtFile

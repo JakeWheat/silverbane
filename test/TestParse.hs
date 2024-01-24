@@ -8,6 +8,7 @@ import Test.Hspec
     (SpecWith
     ,it
     ,describe
+    ,HasCallStack
     )
 
 import Test.Hspec.Megaparsec (shouldParse)
@@ -35,7 +36,7 @@ parseTests = describe "parse" $ do
     --describe "file errors" $ do
     --    mapM_ (uncurry makeFileErrorTest) simpleFileErrors
 
-makeErrorHeaderTest :: Text -> Text -> SpecWith ()
+makeErrorHeaderTest :: HasCallStack => Text -> Text -> SpecWith ()
 makeErrorHeaderTest input e = 
     it ("header error: " <> quickShow input)
         $ myRunParse (header <* eof) "" input
@@ -84,7 +85,7 @@ et-filter="" et-to=""
 
  -}
 
-makeValidatedHeaderTest :: Text -> ValidatedHeader -> SpecWith ()
+makeValidatedHeaderTest :: HasCallStack => Text -> ValidatedHeader -> SpecWith ()
 makeValidatedHeaderTest input tgt = 
     it ("validated header: " <> quickShow input) $ myRunParse (header <* eof) "" input `shouldParse` Just tgt
 
@@ -98,31 +99,41 @@ validatedHeaders :: [(Text, ValidatedHeader)]
 validatedHeaders =
     [("~~~~{et-file=filename}", VHFile "filename")
     ,("~~~~{et-file-prefix='--'}", VHFilePrefix "--")
-    ,("~~~~{et-run='echo stuff'}", VHRun "echo stuff" True)
-    ,("~~~~{et-run}", VHRunInline True)
-    ,("~~~~{et-run='echo stuff' et-non-zero-exit}", VHRun "echo stuff" False)
-    ,("~~~~{et-run et-non-zero-exit}", VHRunInline False)
+
+    ,("~~~~{et-run='echo stuff'}", VHRun Nothing "echo stuff" True)
+    ,("~~~~{et-run}", VHRunInline Nothing True)
+
+    ,("~~~~{et-run='echo stuff' et-non-zero-exit}", VHRun Nothing "echo stuff" False)
+    ,("~~~~{et-run et-non-zero-exit}", VHRunInline Nothing False)
+    
+    ,("~~~~{et-run='echo stuff' et-cwd='mydir'}", VHRun (Just "mydir") "echo stuff" True)
+    ,("~~~~{et-run et-cwd='mydir'}", VHRunInline (Just "mydir") True)
+
+
     ,("~~~~{et-session='ghci' et-prompt='ghci> '}"
-     ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing []))
+     ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " Nothing []))
     ,("~~~~{et-session et-prompt='ghci> '}"
-     ,VHSession (SessionOptions Nothing "ghci> " Nothing []))
+     ,VHSession (SessionOptions Nothing Nothing "ghci> " Nothing []))
 
     ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}"
-     ,VHSession (SessionOptions (Just "ghci") "ghci> " (Just False) []))
+     ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " (Just False) []))
 
     ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to'}"
-     ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing [("from", "to")]))
+     ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " Nothing [("from", "to")]))
 
     ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to' et-filter='alsofrom' et-to='alsoto'}"
-     ,VHSession (SessionOptions (Just "ghci") "ghci> " Nothing [("from", "to"), ("alsofrom", "alsoto")]))
+     ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " Nothing [("from", "to"), ("alsofrom", "alsoto")]))
 
     ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text et-filter='from' et-to='to'}"
-     ,VHSession (SessionOptions (Just "ghci") "ghci> " (Just False) [("from", "to")]))
+     ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " (Just False) [("from", "to")]))
 
     ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to' et-no-initial-text}"
-     ,VHSession (SessionOptions (Just "ghci") "ghci> " (Just False) [("from", "to")]))
+     ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " (Just False) [("from", "to")]))
+
+    ,("~~~~{et-session et-prompt='ghci> '}"
+     ,VHSession (SessionOptions Nothing Nothing "ghci> " Nothing []))
+
     
-     -- todo: inline
     ,("~~~~{et-continue}", VHContinue)
 
     ,("~~~~{.sql et-file=filename}", VHFile "filename")
@@ -132,7 +143,7 @@ validatedHeaders =
 
 -- todo: validate header parse errors -> wrong attributes
 
-makeBodyTest :: Text -> Text -> [SessionLine] -> SpecWith ()
+makeBodyTest :: HasCallStack => Text -> Text -> [SessionLine] -> SpecWith ()
 makeBodyTest prompt input tgt = 
     it ("body: " <> quickShow input) $ myRunParse (sessionBody prompt <* eof) "" input `shouldParse` tgt
 
@@ -164,7 +175,7 @@ ghci> 1 + 2
 |], [Reply "pre stuff\nmore\n", Prompt "1 + 2\n", Reply "3\n"])
     ]
 
-makeInlineBodyTest :: Text -> Text -> (Text, [SessionLine]) -> SpecWith ()
+makeInlineBodyTest :: HasCallStack => Text -> Text -> (Text, [SessionLine]) -> SpecWith ()
 makeInlineBodyTest prompt input tgt = 
     it ("body: " <> quickShow input) $ myRunParse (inlineCmdSessionBody prompt <* eof) "" input `shouldParse` tgt
 
@@ -181,7 +192,7 @@ ghci>
 
     ]
 
-makeFileTest :: Text -> [FileChunk] -> SpecWith ()
+makeFileTest :: HasCallStack => Text -> [FileChunk] -> SpecWith ()
 makeFileTest input tgt = 
     it ("file: " <> quickShow input) $ myRunParse (file <* eof) "" input `shouldParse` tgt
 
@@ -279,14 +290,14 @@ stuff2
 ~~~~{et-run='echo stuff'}
 stuff
 ~~~~
-|], [FcRun (EtRun 3 "echo stuff" True "stuff\n")])
+|], [FcRun (EtRun 3 Nothing "echo stuff" True "stuff\n")])
 
     ,([R.r|
 ~~~~{et-run}
 $ echo stuff
 stuff
 ~~~~
-|], [FcRun (EtRun 2 "echo stuff" True "stuff\n")])
+|], [FcRun (EtRun 2 Nothing "echo stuff" True "stuff\n")])
 
     ,([R.r|
 ~~~~{et-session='ghci' et-prompt='ghci> '}
@@ -317,20 +328,20 @@ ghci>
 ~~~~
 
 
-|], [FcSession $ EtSession 2 "ghci" "ghci> " Nothing []
+|], [FcSession $ EtSession 2 Nothing "ghci" "ghci> " Nothing []
      [Reply "stuff\n"
      ,Prompt "1 + 2\n"
      ,Reply "3\n"]
     ,FcContinue $ EtContinue 8
      [Prompt "3 + 4\n"
      ,Reply "7\n"]
-    ,FcSession $ EtSession 13 "python3" ">>> " Nothing []
+    ,FcSession $ EtSession 13 Nothing "python3" ">>> " Nothing []
      [Prompt "1 + 2\n"
      ,Reply "3\nghci> \n"]
     ,FcContinue $ EtContinue 20
      [Prompt "3 + 4\n"
      ,Reply "7\nghci> \n"]
-    ,FcSession $ EtSession 26 "stuff" ">>> " (Just False) [("f", "t")] []
+    ,FcSession $ EtSession 26 Nothing "stuff" ">>> " (Just False) [("f", "t")] []
      ])
 
     ]
@@ -339,7 +350,7 @@ ghci>
 -- errors:
 -- continue without session
 
-{-makeFileErrorTest :: Text -> Text -> SpecWith ()
+{-makeFileErrorTest :: HasCallStack => Text -> Text -> SpecWith ()
 makeFileErrorTest input e = 
     it ("file error: " <> quickShow input)
         $ myRunParse (pure "" <* file <* eof) "" input
