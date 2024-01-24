@@ -25,6 +25,7 @@ import Data.Char (isSpace, ord)
 import Control.Exception.Safe 
 import Debug.Trace (trace)
 import qualified RegexReplace as Re
+import qualified DiffLibWrap as D
 
 import System.FilePath
 
@@ -63,6 +64,7 @@ expectTest fn input = do
     let ps = either (error . prettyError) id $ parseFile fn input
 
     P.initPexpect
+    D.initDiffLibWrap
 
     currentSpawn <- newIORef Nothing
 
@@ -148,6 +150,19 @@ expectTest fn input = do
             -- todo: set a ioref flag, so it can get the process exit code right
             modifyIORef esr (ExpectTestError fn ln msg:)
 
+        showDiff src tgt =
+            "----------\n" <> tgt <> "\n----------\ndiff:\n----------\n" <>
+                D.doDiff (D.D {D.fromName = "x"
+                             ,D.toName = "y"
+                             ,D.fromText = src
+                             ,D.toText = tgt})
+            <> "----------"
+        showSessionDiff prompt doc tgt =
+            let showIt = T.unlines . map (\case
+                            Prompt p -> prompt <> T.strip p
+                            Reply r -> T.strip r)
+            in showDiff (showIt doc) (showIt tgt)
+    
     flip mapM_ ps $ \case
         FcFile et -> do
             -- read the file
@@ -180,13 +195,13 @@ expectTest fn input = do
                       addError (erStartLine et) $ "process didn't exit with non zero:\n" <> T.pack tgt
                     | erBody et == T.pack tgt -> pure ()
                     | otherwise ->
-                      addError (erStartLine et) $ "output doesn't match:\n" <> T.pack tgt
+                      addError (erStartLine et) $ "output doesn't match:\n" <> showDiff (erBody et) (T.pack tgt)
                 Right (ExitFailure {}, tgt)
                     | erZeroExit et ->
                       addError (erStartLine et) $ "process exited with non zero:\n" <> T.pack tgt
                     | erBody et == T.pack tgt -> pure ()
                     | otherwise ->
-                      addError (erStartLine et) $ "output doesn't match:\n" <> T.pack tgt
+                      addError (erStartLine et) $ "output doesn't match:\n" <> showDiff (erBody et) (T.pack tgt)
         FcSession et -> do
             old <- readIORef currentSpawn
             case old of
@@ -213,12 +228,12 @@ expectTest fn input = do
                     let tgt = (if esInitialText et `elem` [Just True, Nothing]
                                then (Reply initialText :)
                                else id) rs
-                    let showIt = T.unlines $ flip map tgt $ \case
-                            Prompt p -> esPrompt et <> T.strip p
-                            Reply r -> T.strip r
                     if compareSessions (esFilters et) tgt (esSessionLines et)
                         then pure ()
-                        else addError (esStartLine et) $ "output doesn't match:\n" <> showIt
+                        else addError (esStartLine et) $ "output doesn't match:\n"
+                        -- todo: this doesn't take into account the filters,
+                        -- not sure how should do that ...
+                        <> showSessionDiff (esPrompt et) (esSessionLines et) tgt
                     writeIORef currentSpawn (Just (h,esPrompt et, esFilters et))
         FcContinue et -> do
             mh <- readIORef currentSpawn
@@ -226,12 +241,10 @@ expectTest fn input = do
                 Nothing -> addError (ecStartLine et) "continue without previous session"
                 Just (h, prompt, filters) -> do
                     tgt <- runSession h prompt (ecSessionLines et)
-                    let showIt = T.unlines $ flip map tgt $ \case
-                            Prompt p -> prompt <> T.strip p
-                            Reply r -> T.strip r
                     if compareSessions filters tgt (ecSessionLines et)
                         then pure ()
-                        else addError (ecStartLine et) $ "output doesn't match:\n" <> showIt
+                        else addError (ecStartLine et) $ "output doesn't match:\n"
+                             <> showSessionDiff prompt (ecSessionLines et) tgt
     es <- readIORef esr
     pure $ reverse es
 

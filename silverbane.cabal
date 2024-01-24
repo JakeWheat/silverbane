@@ -30,6 +30,7 @@ library
                       ExpectTest
                       RegexReplace
                       ProcessUtils
+                      DiffLibWrap
     hs-source-dirs:   lib
     build-depends:    base ^>=4.19.0.0,
                       python-wrapper,
