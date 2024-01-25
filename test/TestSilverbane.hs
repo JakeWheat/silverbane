@@ -95,7 +95,7 @@ stuff
 
     
     ,("check interleaved stdout and err", [R.r|
-~~~~{sb-run='testfiles/testscript.py 0'}
+~~~~{sb-run='testfiles/mockcommand.py 0'}
 stdoutline1
 stdoutline2
 stderrline1
@@ -108,7 +108,7 @@ stderrline4
 |], [])
 
     ,("check expected error code", [R.r|
-~~~~{sb-run='testfiles/testscript.py 1' sb-non-zero-exit}
+~~~~{sb-run='testfiles/mockcommand.py 1' sb-non-zero-exit}
 stdoutline1
 stdoutline2
 stderrline1
@@ -121,7 +121,7 @@ stderrline4
 |], [])
 
     ,("check unexpected non zero error", [R.r|
-~~~~{sb-run='testfiles/testscript.py 1'}
+~~~~{sb-run='testfiles/mockcommand.py 1'}
 stdoutline1
 stdoutline2
 stderrline1
@@ -134,7 +134,7 @@ stderrline4
 |], ["process exited with non zero"])
 
         ,("check unexpected 0 exit code", [R.r|
-~~~~{sb-run='testfiles/testscript.py 0' sb-non-zero-exit}
+~~~~{sb-run='testfiles/mockcommand.py 0' sb-non-zero-exit}
 stdoutline1
 stdoutline2
 stderrline1
@@ -292,7 +292,7 @@ check variations on prompts which don't output anything
 >>> 1 + 2
 4
 ~~~~
-|], ["output doesn't match"])
+|], ["document doesn't match output"])
 
 
         ,("testfiles/session-relative-dir", [R.r|
@@ -460,7 +460,7 @@ $ python3
 >>> 3 + 4
 8
 ~~~~
-|], ["output doesn't match"])
+|], ["document doesn't match output"])
 
 
     --------------------------------------
@@ -535,7 +535,7 @@ $ python3
 This is an example, my random = 0.12341234123412345, more stuff1
 ~~~~
 
-|], ["output doesn't match"])
+|], ["document doesn't match output"])
 
 
     ]

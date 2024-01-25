@@ -42,17 +42,21 @@ data Pexpect = Pexpect Py.PyObject
 initPexpect :: IO ()
 initPexpect = do
     Py.initialize
-    void $ e <$> Py.script "import pexpect"
+    void $ e <$> Py.script "import pexpect\nimport os"
 
 spawn :: Maybe Text -> Text -> IO Pexpect
 spawn (Just cwd) cmd =  do
     args <- sequence [Py.toPyObject cmd, Py.toPyObject cwd]
     --putStrLn $ "spawn: " <> T.unpack cmd
-    fn <- e <$> Py.eval "lambda x, y: pexpect.spawn(x, encoding='utf=8', cwd=y, echo=False)"
+    -- not a single solitary example of using env or any documentation for it in pexcept
+    -- sadly, very common with python ...
+    -- use env TERM=dumb to disable escapes coming from programs that are run
+    fn <- e <$> Py.eval "lambda x, y: pexpect.spawn(x, encoding='utf=8', cwd=y, echo=False, env=os.environ | {'TERM': 'dumb'})"
     Pexpect <$> e <$> Py.app fn args
+
 spawn Nothing cmd =  do
     args <- sequence [Py.toPyObject cmd]
-    fn <- e <$> Py.eval "lambda x: pexpect.spawn(x, encoding='utf=8')"
+    fn <- e <$> Py.eval "lambda x: pexpect.spawn(x, encoding='utf=8', env=os.environ | {'TERM': 'dumb'})"
     Pexpect <$> e <$> Py.app fn args
 
 sendline :: Pexpect -> Text -> IO ()

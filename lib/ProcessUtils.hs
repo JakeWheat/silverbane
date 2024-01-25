@@ -31,6 +31,7 @@ import qualified Control.Concurrent.Async as A
 
 import Control.DeepSeq (rnf)
 import qualified Control.Exception as C
+import System.Environment (getEnvironment)
 
 myReadProcess ::  Maybe String -> String -> String -> IO (ExitCode, String)
 myReadProcess
@@ -42,11 +43,14 @@ myReadProcess
     -- ^ standard input
     = do
     (hr, hw) <- createPipe
+    myEnv <- getEnvironment
     cp <- createProcess (shell cmdline)
-                                       {cwd = newwd
+                                       { cwd = newwd
                                        , std_out = UseHandle hw
                                        , std_err = UseHandle hw
                                        , std_in = CreatePipe
+                                       -- try to stop processes that are run from emitting escapes
+                                       , env = Just (("TERM", "dumb") : myEnv)
                                        }
     case cp of
         (Just inh, Nothing, Nothing, hproc) -> do

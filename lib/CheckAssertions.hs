@@ -95,7 +95,7 @@ checkARun docPath et = \case
         if (erBody et) == out
         then []
         else [SilverbaneError docPath (erStartLine et)
-              $ "output doesn't match:\n" <> showDiff (erBody et) out]
+              $ "document doesn't match output:\n" <> showDiff (erBody et) out]
 
 ------------------------------------------------------------------------------
 
@@ -164,7 +164,7 @@ compareSessions docPath lne prompt filters docSls processSls =
     in if docSls' == processSls'
        then []
        else [SilverbaneError docPath lne $
-            "output doesn't match:\n"
+            "document doesn't match output:\n"
             <> showDiff' (showSls docSls') (showSls processSls') (showSls processSls)
             {-<> "\n\n------docsls\n"
             <> showT docSls'
