@@ -12,19 +12,17 @@ to check the examples were correct easily.
 
 ## Example
 
-~~~~ {file=mydoc.md}
+~~~~~~{file=exampledoc.md}
 
 This is an example of using python as a simple calculator:
 
-TODO: how do you nest ~~~~ inside ~~~~
-  -> pandoc has a way, copy that
- ~~~~{...}
+~~~~{...}
 >>> 1 + 2
 4
 
- ~~~~
-
 ~~~~
+
+~~~~~~
 
 TODO: show output when running this program
 
@@ -50,5 +48,9 @@ The things it can check are:
 ## checking interactive command lines
 
 
+note: the output on error is designed to not be terse, but be usable
+the output is quoted verbatim so you can e.g. write a session in your docs
+with just the prompts, run silverbane, then just paste what was recorded
+into your doc.
 
 

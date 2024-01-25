@@ -2,8 +2,6 @@ Documentation, specification, plenty of examples
 
 Nice command line args handler, read from stdin option
 
-the code needs a lot of refactoring, it's a mess
-
 lots more tests, check more parse errors and source positions
 
 check the document processing mainly with a mock for the pexpect wrapper
@@ -27,14 +25,6 @@ improve the python-wrapper -> the api sucks, and it doesn't have
   and get it as a value, without messing with the python namespace,
   this must be possible
 
-improve the ux for test failures, a big one is improving the output
-when a larger session doesn't match
--> break it up and isolate non matching prompts?
-or run a diff on the render?
-want a good ux for fixing the docs when the responses change,
-and for initial population of docs just by writing prompts and
-then copying from the errors you get - like a poor man's notebook
-
 debugging tools for debugging when you get mismatches, or weird
 errors with the spawned exes/interactions
   logs of what happens when running
@@ -43,7 +33,7 @@ errors with the spawned exes/interactions
 ability to output an entirely new document with all the files,
 outputs and replies populated with the actual responses
 -> can be used to run a diff on your current document
-or replace it if you are lazy and like risks
+or just replace it if you are lazy and like taking risks
 
 inline defaults and overrides + command line defaults + config system
 
@@ -79,3 +69,6 @@ api use
 it would be nice to find more interactive ways of working
   -> capture outputs then interactively tune the filter regexes for instance
   how do you do a project specific uat for the filters?
+
+support multiline prompts: I think this will have to be program
+specific

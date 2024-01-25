@@ -68,28 +68,28 @@ errorHeaders =
     ,("~~~~{{\n", "unexpected '{'")
     ,("~~~~{} a\n", "unexpected 'a'")
     
-    ,("~~~~{et-file=x et-file=x}\n", "unexpected et-file")
-    ,("~~~~{et-session=x stuff}\n", "unexpected \"stuff")
-    ,("~~~~{et-session=x}\n", "expecting \"et-prompt\"")
-    ,("~~~~{et-continue=x}\n", "attribute should not have value")
-    -- todo: et-to without et-filter, with attribute in between
+    ,("~~~~{sb-file=x sb-file=x}\n", "unexpected sb-file")
+    ,("~~~~{sb-session=x stuff}\n", "unexpected \"stuff")
+    ,("~~~~{sb-session=x}\n", "expecting \"sb-prompt\"")
+    ,("~~~~{sb-continue=x}\n", "attribute should not have value")
+    -- todo: sb-to without sb-filter, with attribute in between
     ]
 
 {-
 
 
 validate header:
-et-file=
-et-file-prefix=
-et-run=
-et-run
-et-session= et-prompt=
-et-continue
+sb-file=
+sb-file-prefix=
+sb-run=
+sb-run
+sb-session= sb-prompt=
+sb-continue
   I think this needs a state transformer, booo, but so be it
 
-et-no-initial-text
-et-initial-text
-et-filter="" et-to=""
+sb-no-initial-text
+sb-initial-text
+sb-filter="" sb-to=""
 + multiple
 
  -}
@@ -106,52 +106,52 @@ testOKHeader =
 
 validatedHeaders :: [(Text, ValidatedHeader)]
 validatedHeaders =
-    [("~~~~{et-file=filename}", VHFile "filename")
-    ,("~~~~{et-file-prefix='--'}", VHFilePrefix "--")
+    [("~~~~{sb-file=filename}", VHFile "filename")
+    ,("~~~~{sb-file-prefix='--'}", VHFilePrefix "--")
 
-    ,("~~~~{et-run='echo stuff'}", VHRun Nothing "echo stuff" True)
-    ,("~~~~{et-run}", VHRunInline Nothing True)
+    ,("~~~~{sb-run='echo stuff'}", VHRun Nothing "echo stuff" True)
+    ,("~~~~{sb-run}", VHRunInline Nothing True)
 
-    ,("~~~~{et-run='echo stuff' et-non-zero-exit}", VHRun Nothing "echo stuff" False)
-    ,("~~~~{et-run et-non-zero-exit}", VHRunInline Nothing False)
+    ,("~~~~{sb-run='echo stuff' sb-non-zero-exit}", VHRun Nothing "echo stuff" False)
+    ,("~~~~{sb-run sb-non-zero-exit}", VHRunInline Nothing False)
     
-    ,("~~~~{et-run='echo stuff' et-cwd='mydir'}", VHRun (Just "mydir") "echo stuff" True)
-    ,("~~~~{et-run et-cwd='mydir'}", VHRunInline (Just "mydir") True)
+    ,("~~~~{sb-run='echo stuff' sb-cwd='mydir'}", VHRun (Just "mydir") "echo stuff" True)
+    ,("~~~~{sb-run sb-cwd='mydir'}", VHRunInline (Just "mydir") True)
 
 
-    ,("~~~~{et-session='ghci' et-prompt='ghci> '}"
+    ,("~~~~{sb-session='ghci' sb-prompt='ghci> '}"
      ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " Nothing []))
-    ,("~~~~{et-session et-prompt='ghci> '}"
+    ,("~~~~{sb-session sb-prompt='ghci> '}"
      ,VHSession (SessionOptions Nothing Nothing "ghci> " Nothing []))
 
-    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}"
+    ,("~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-no-initial-text}"
      ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " (Just False) []))
 
-    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to'}"
+    ,("~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-filter='from' sb-to='to'}"
      ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " Nothing [("from", "to")]))
 
-    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to' et-filter='alsofrom' et-to='alsoto'}"
+    ,("~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-filter='from' sb-to='to' sb-filter='alsofrom' sb-to='alsoto'}"
      ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " Nothing [("from", "to"), ("alsofrom", "alsoto")]))
 
-    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text et-filter='from' et-to='to'}"
+    ,("~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-no-initial-text sb-filter='from' sb-to='to'}"
      ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " (Just False) [("from", "to")]))
 
-    ,("~~~~{et-session='ghci' et-prompt='ghci> ' et-filter='from' et-to='to' et-no-initial-text}"
+    ,("~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-filter='from' sb-to='to' sb-no-initial-text}"
      ,VHSession (SessionOptions Nothing (Just "ghci") "ghci> " (Just False) [("from", "to")]))
 
-    ,("~~~~{et-session et-prompt='ghci> '}"
+    ,("~~~~{sb-session sb-prompt='ghci> '}"
      ,VHSession (SessionOptions Nothing Nothing "ghci> " Nothing []))
 
     
-    ,("~~~~{et-continue}", VHContinue)
+    ,("~~~~{sb-continue}", VHContinue)
 
     -- pandoc won't parse without the equals, so allow this as
     -- alternative no value attribute syntax (it was probably
     -- parsing to the wrong thing before also)
-    ,("~~~~{et-continue=}", VHContinue)
+    ,("~~~~{sb-continue=}", VHContinue)
 
-    ,("~~~~{.sql et-file=filename}", VHFile "filename")
-    ,("~~~~{.sql et-file=filename #myclass stuff}", VHFile "filename")
+    ,("~~~~{.sql sb-file=filename}", VHFile "filename")
+    ,("~~~~{.sql sb-file=filename #myclass stuff}", VHFile "filename")
     ]
      -- todo: session options
 
@@ -216,7 +216,7 @@ simpleFiles =
     ,("stuff", [])
     ,("\nstuff\n", [])
     
-    ,([R.r|~~~~{et-file=myfile}
+    ,([R.r|~~~~{sb-file=myfile}
 stuff
 stuff
 ~~~~
@@ -224,14 +224,14 @@ stuff
 stuff
 |])])
     
-    ,([R.r|~~~~{et-file=myfile}
+    ,([R.r|~~~~{sb-file=myfile}
 stuff
 stuff
 ~~~~|], [FcFile (EtFile 1 "myfile" [R.r|stuff
 stuff
 |])])
 
-    ,([R.r|~~~~{et-file=myfile other-stuff}
+    ,([R.r|~~~~{sb-file=myfile other-stuff}
 stuff
 stuff
 ~~~~|], [FcFile (EtFile 1 "myfile" [R.r|stuff
@@ -242,7 +242,7 @@ stuff
 
 preamble text
 
-~~~~{et-file=myfile}
+~~~~{sb-file=myfile}
 stuff
 stuff
 ~~~~
@@ -257,11 +257,11 @@ stuff
 
 preamble text
 
-~~~~{et-file=myfile}
+~~~~{sb-file=myfile}
 block1
 ~~~~
 
-~~~~{et-file=myfile2}
+~~~~{sb-file=myfile2}
 block2
 ~~~~
 
@@ -276,18 +276,18 @@ postamble text
 -- file with inline filename
     ,([R.r|
 
-~~~~{et-file-prefix='--'}
+~~~~{sb-file-prefix='--'}
 -- File myfile
 stuff
 ~~~~
 
-~~~~{et-file-prefix='--'}
+~~~~{sb-file-prefix='--'}
 
 -- File myfile1
 stuff1
 ~~~~
 
-~~~~{et-file-prefix='--'}
+~~~~{sb-file-prefix='--'}
 
 -- myfile2
 stuff2
@@ -301,44 +301,44 @@ stuff2
 
     ,([R.r|
 
-~~~~{et-run='echo stuff'}
+~~~~{sb-run='echo stuff'}
 stuff
 ~~~~
 |], [FcRun (EtRun 3 Nothing "echo stuff" True "stuff\n")])
 
     ,([R.r|
-~~~~{et-run}
+~~~~{sb-run}
 $ echo stuff
 stuff
 ~~~~
 |], [FcRun (EtRun 2 Nothing "echo stuff" True "stuff\n")])
 
     ,([R.r|
-~~~~{et-session='ghci' et-prompt='ghci> '}
+~~~~{sb-session='ghci' sb-prompt='ghci> '}
 stuff
 ghci> 1 + 2
 3
 ~~~~
 
-~~~~{et-continue}
+~~~~{sb-continue}
 ghci> 3 + 4
 7
 ~~~~
 
-~~~~{et-session et-prompt=">>> "}
+~~~~{sb-session sb-prompt=">>> "}
 $ python3
 >>> 1 + 2
 3
 ghci> 
 ~~~~
 
-~~~~{et-continue}
+~~~~{sb-continue}
 >>> 3 + 4
 7
 ghci> 
 ~~~~
 
-~~~~{et-session='stuff' et-prompt=">>> " et-no-initial-text et-filter=f et-to=t}
+~~~~{sb-session='stuff' sb-prompt=">>> " sb-no-initial-text sb-filter=f sb-to=t}
 ~~~~
 
 
@@ -374,5 +374,5 @@ makeFileErrorTest input e =
 simpleFileErrors =
     [    ("~~~~{\na}", "xx")
 
-        --("~~~~{et-session='ghci' et-prompt='ghci> '\n", "xx")
+        --("~~~~{sb-session='ghci' sb-prompt='ghci> '\n", "xx")
     ]-}

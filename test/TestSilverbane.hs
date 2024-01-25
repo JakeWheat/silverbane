@@ -43,14 +43,14 @@ silverbaneExamples =
      --  file tests
      ("file", [R.r|
 
-~~~~{et-file='testfiles/testfile'}
+~~~~{sb-file='testfiles/testfile'}
 testfilecontent
 ~~~~
 
 |], [])
     ,("file-wrong-content", [R.r|
 
-~~~~{et-file='testfiles/testfile'}
+~~~~{sb-file='testfiles/testfile'}
 wrong testfilecontent
 ~~~~
 
@@ -64,7 +64,7 @@ wrong testfilecontent
 
     ,("file-doesn-t-exist", [R.r|
 
-~~~~{et-file='testfiles/noexist'}
+~~~~{sb-file='testfiles/noexist'}
 testfilecontent
 ~~~~
 
@@ -72,7 +72,7 @@ testfilecontent
 
     ,("testfiles/file-path-relative", [R.r|
 
-~~~~{et-file='testfile'}
+~~~~{sb-file='testfile'}
 testfilecontent
 ~~~~
 
@@ -82,20 +82,20 @@ testfilecontent
     -- run process
     
     ,("simple run", [R.r|
-~~~~{et-run='echo stuff'}
+~~~~{sb-run='echo stuff'}
 stuff
 ~~~~
 |], [])
 
     ,("starting run process fails", [R.r|
-~~~~{et-run='echo1 stuff'}
+~~~~{sb-run='echo1 stuff'}
 stuff
 ~~~~
 |], ["echo1: not found"])
 
     
     ,("check interleaved stdout and err", [R.r|
-~~~~{et-run='testfiles/testscript.py 0'}
+~~~~{sb-run='testfiles/testscript.py 0'}
 stdoutline1
 stdoutline2
 stderrline1
@@ -108,7 +108,7 @@ stderrline4
 |], [])
 
     ,("check expected error code", [R.r|
-~~~~{et-run='testfiles/testscript.py 1' et-non-zero-exit}
+~~~~{sb-run='testfiles/testscript.py 1' sb-non-zero-exit}
 stdoutline1
 stdoutline2
 stderrline1
@@ -121,7 +121,7 @@ stderrline4
 |], [])
 
     ,("check unexpected non zero error", [R.r|
-~~~~{et-run='testfiles/testscript.py 1'}
+~~~~{sb-run='testfiles/testscript.py 1'}
 stdoutline1
 stdoutline2
 stderrline1
@@ -134,7 +134,7 @@ stderrline4
 |], ["process exited with non zero"])
 
         ,("check unexpected 0 exit code", [R.r|
-~~~~{et-run='testfiles/testscript.py 0' et-non-zero-exit}
+~~~~{sb-run='testfiles/testscript.py 0' sb-non-zero-exit}
 stdoutline1
 stdoutline2
 stderrline1
@@ -148,7 +148,7 @@ stderrline4
 
 
     ,("testfiles/check-relative-dir", [R.r|
-~~~~{et-run='cat testfile'}
+~~~~{sb-run='cat testfile'}
 testfilecontent
 ~~~~
 |], [])
@@ -158,28 +158,28 @@ testfilecontent
      
     ,("testfiles/check-relative-dir-should-fail", [R.r|
 check it can't find this file any more
-~~~~{et-run='cat testfile' et-cwd='..'}
+~~~~{sb-run='cat testfile' sb-cwd='..'}
 testfilecontent
 ~~~~
 |], ["testfile: No such file or directory"])
 
     -- test here that it doesn't work without cwd
     ,("check-relative-dir-doublecheck", [R.r|
-~~~~{et-run='cat testfile'}
+~~~~{sb-run='cat testfile'}
 testfilecontent
 ~~~~
 |], ["testfile: No such file or directory"])
 
     
     ,("check-relative-dir-succeed", [R.r|
-~~~~{et-run='cat testfile' et-cwd='testfiles/'}
+~~~~{sb-run='cat testfile' sb-cwd='testfiles/'}
 testfilecontent
 ~~~~
 |], [])
 
      
     ,("run with quoted args", [R.r|
-~~~~{et-run='testfiles/echoscript.py "this is one arg" "this is another"'}
+~~~~{sb-run='testfiles/echoscript.py "this is one arg" "this is another"'}
 this is one arg
 this is another
 ~~~~
@@ -191,7 +191,7 @@ this is another
     -- simple sessions
 
     ,("simple session 1", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+~~~~{sb-session='python3' sb-prompt='>>> '}
 Python 3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> 
@@ -199,7 +199,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 |], [])
 
     ,("simple session 1", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+~~~~{sb-session='python3' sb-prompt='>>> '}
 
 Python 3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
@@ -210,19 +210,19 @@ Type "help", "copyright", "credits" or "license" for more information.
 
     
     ,("simple session 1.5", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> 
 ~~~~
 |], [])
 
     
     ,("simple session 2", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 ~~~~
 |], [])
 
         ,("simple session 3", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 
 >>> 
 
@@ -230,14 +230,14 @@ Type "help", "copyright", "credits" or "license" for more information.
 |], [])
 
         ,("simple session 4", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> 1 + 2
 3
 ~~~~
 |], [])
 
         ,("simple session 4.5", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> print("line1\nline2\nline3")
 line1
 line2
@@ -247,7 +247,7 @@ line3
 
         
         ,("simple session 4", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> 1 + 2
 3
 >>> 
@@ -255,7 +255,7 @@ line3
 |], [])
 
         ,("simple session 5", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> 1 + 2
 3
 >>> 3 + 4
@@ -270,13 +270,13 @@ hello
         ,("simple session 6", [R.r|
 check variations on prompts which don't output anything
 
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> import string
 >>> string.capwords('test')
 'Test'
 ~~~~
 
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 
 >>> import string
 
@@ -288,7 +288,7 @@ check variations on prompts which don't output anything
 |], [])
 
         ,("simple session fail 1", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> 1 + 2
 4
 ~~~~
@@ -296,7 +296,7 @@ check variations on prompts which don't output anything
 
 
         ,("testfiles/session-relative-dir", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> f = open('testfile')
 >>> print(f.read())
 testfilecontent
@@ -305,7 +305,7 @@ testfilecontent
 
 
         ,("long line", [R.r|
-~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
+~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-no-initial-text}
 ghci> unwords ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"]
 "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
 ~~~~
@@ -313,7 +313,7 @@ ghci> unwords ["one", "two", "three", "four", "five", "six", "seven", "eight", "
 
 
    {- ,("session relative dir", [R.r|
-~~~~{et-session='python3' et-prompt='>>> '}
+~~~~{sb-session='python3' sb-prompt='>>> '}
 Python 3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> 
@@ -321,7 +321,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 |], [])-}
 
     ,("testfiles/session-relative-dir-fail", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text et-cwd='..'} 
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text sb-cwd='..'} 
 >>> f = open('testfile')
 Traceback (most recent call last):
   File "<stdin>", line 1, in <module>
@@ -331,7 +331,7 @@ FileNotFoundError: [Errno 2] No such file or directory: 'testfile'
 
     -- test here that it doesn't work without cwd
     ,("session-relative-dir-fail", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text}
 >>> f = open('testfile')
 Traceback (most recent call last):
   File "<stdin>", line 1, in <module>
@@ -340,7 +340,7 @@ FileNotFoundError: [Errno 2] No such file or directory: 'testfile'
 |], [])
 
     ,("check-session-relative-dir-succeed", [R.r|
-~~~~{et-session='python3' et-prompt='>>> ' et-no-initial-text et-cwd='testfiles'}
+~~~~{sb-session='python3' sb-prompt='>>> ' sb-no-initial-text sb-cwd='testfiles'}
 >>> f = open('testfile')
 >>> f.read()
 'testfilecontent\n'
@@ -348,7 +348,7 @@ FileNotFoundError: [Errno 2] No such file or directory: 'testfile'
 |], [])
 
     ,("session with args pre sanity", [R.r|
-~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
+~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-no-initial-text}
 ghci> import Data.Text
 ghci> "test" :: Text
 <interactive>:2:1: error: [GHC-83865]
@@ -361,7 +361,7 @@ ghci> "test" :: Text
 |], [])
 
     ,("session with args", [R.r|
-~~~~{et-session='ghci -XOverloadedStrings' et-prompt='ghci> ' et-no-initial-text}
+~~~~{sb-session='ghci -XOverloadedStrings' sb-prompt='ghci> ' sb-no-initial-text}
 ghci> import Data.Text
 ghci> "test" :: Text
 "test"
@@ -375,20 +375,20 @@ ghci> "test" :: Text
     -- todo: check relative dir in sessions
 
         ,("session continue", [R.r|
-~~~~{et-session et-prompt=">>> " et-no-initial-text}
+~~~~{sb-session sb-prompt=">>> " sb-no-initial-text}
 $ python3
 >>> 1 + 2
 3
 ~~~~
 
-~~~~{et-continue}
+~~~~{sb-continue}
 >>> 3 + 4
 7
 ~~~~
 |], [])
         
         ,("session continue switch", [R.r|
-~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
+~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-no-initial-text}
 ghci> 1 + 2
 3
 ghci> 3 + 5
@@ -400,12 +400,12 @@ ghci>
 
 check this is definitely ghci and not python
 
-~~~~{et-continue}
+~~~~{sb-continue}
 ghci> (3 :: Int) + 4
 7
 ~~~~
 
-~~~~{et-session et-prompt=">>> " et-no-initial-text}
+~~~~{sb-session sb-prompt=">>> " sb-no-initial-text}
 $ python3
 >>> 1 + 2
 3
@@ -413,14 +413,14 @@ $ python3
 
 check this is definitely python and not ghci
 
-~~~~{et-continue}
+~~~~{sb-continue}
 >>> 3 + 4 if isinstance(3, int) else None
 7
 ~~~~
 |], [])
 
         ,("double check session continue switch", [R.r|
-~~~~{et-session='ghci' et-prompt='ghci> ' et-no-initial-text}
+~~~~{sb-session='ghci' sb-prompt='ghci> ' sb-no-initial-text}
 ghci> 1 + 2
 3
 ghci> 3 + 5
@@ -430,12 +430,12 @@ ghci> 3 + 7
 ghci> 
 ~~~~
 
-~~~~{et-continue}
+~~~~{sb-continue}
 ghci> (3 :: Int) + 4
 7
 ~~~~
 
-~~~~{et-session et-prompt=">>> " et-no-initial-text}
+~~~~{sb-session sb-prompt=">>> " sb-no-initial-text}
 $ python3
 >>> 1 + 2
 3
@@ -443,20 +443,20 @@ $ python3
 
 check this is definitely python and not ghci
 
-~~~~{et-continue}
+~~~~{sb-continue}
 >>> (3 :: Int) + 4
 7
 ~~~~
 |], ["SyntaxError: invalid syntax"])
 
         ,("mismatch in continue", [R.r|
-~~~~{et-session et-prompt=">>> " et-no-initial-text}
+~~~~{sb-session sb-prompt=">>> " sb-no-initial-text}
 $ python3
 >>> 1 + 2
 3
 ~~~~
 
-~~~~{et-continue}
+~~~~{sb-continue}
 >>> 3 + 4
 8
 ~~~~
@@ -467,7 +467,7 @@ $ python3
     -- session assorted anomalies
         
         ,("session run fails", [R.r|
-~~~~{et-session='wython3' et-prompt='>>> '}
+~~~~{sb-session='wython3' sb-prompt='>>> '}
 >>> print("line1\nline2\nline3")
 line1
 line2
@@ -477,14 +477,14 @@ line3
 
         -- todo: catch this specific situation and give a better error message
         ,("continue after session run fails", [R.r|
-~~~~{et-session='wython3' et-prompt='>>> '}
+~~~~{sb-session='wython3' sb-prompt='>>> '}
 >>> print("line1\nline2\nline3")
 line1
 line2
 line3
 ~~~~
 
-~~~~{et-continue}
+~~~~{sb-continue}
 >>> 3 + 4
 8
 ~~~~
@@ -518,7 +518,7 @@ running the spawnee. This isn't ideal when you want to write a prompt,
 then run this program, get an error, and then paste the correct text into
 your document, which is a way of working that should be supported.
 
-~~~~{et-session et-prompt=">>> " et-no-initial-text et-filter="my random = 0\.[0-9]+" et-to='my random = 0.42353301245135155'}
+~~~~{sb-session sb-prompt=">>> " sb-no-initial-text sb-filter="my random = 0\.[0-9]+" sb-to='my random = 0.42353301245135155'}
 $ python3
 >>> import random
 >>> print(f"This is an example, my random = {random.random()}, more stuff")
@@ -528,7 +528,7 @@ This is an example, my random = 0.12341234123412345, more stuff
 |], [])
 
         ,("check filter stays in its lane", [R.r|
-~~~~{et-session et-prompt=">>> " et-no-initial-text et-filter="my random = 0\.[0-9]+" et-to='my random = 0.42353301245135155'}
+~~~~{sb-session sb-prompt=">>> " sb-no-initial-text sb-filter="my random = 0\.[0-9]+" sb-to='my random = 0.42353301245135155'}
 $ python3
 >>> import random
 >>> print(f"This is an example, my random = {random.random()}, more stuff")

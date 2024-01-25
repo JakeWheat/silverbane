@@ -109,7 +109,7 @@ lexeme p = p <* void (optional nonnewlinewhitespace)
 
 -- returns the line including the newline at the end if there is one
 -- (this is not very efficient, but good enough for now)
--- if matches any et- attributes, returns all the attributes parsed out as well
+-- if matches any sb- attributes, returns all the attributes parsed out as well
 header :: Parser (Maybe ValidatedHeader)
 header = do
     void $ lexeme $ chunk "~~~~"
@@ -127,35 +127,35 @@ header = do
         choice
             [do
              vh <- choice
-                  [VHFilePrefix <$> attributeRequiredValue "et-file-prefix"
-                  ,VHFile <$> attributeRequiredValue "et-file"
+                  [VHFilePrefix <$> attributeRequiredValue "sb-file-prefix"
+                  ,VHFile <$> attributeRequiredValue "sb-file"
                   ,do
-                   x <- attributeOptionalValue "et-run"
+                   x <- attributeOptionalValue "sb-run"
                    (expectZeroExit,mcwd) <-
                         P.runPermutation $ (,)
-                        <$> P.toPermutation (option True (False <$ attributeNoValue "et-non-zero-exit"))
-                        <*> P.toPermutation (optional (attributeRequiredValue "et-cwd"))
+                        <$> P.toPermutation (option True (False <$ attributeNoValue "sb-non-zero-exit"))
+                        <*> P.toPermutation (optional (attributeRequiredValue "sb-cwd"))
                    
                    case x of
                        Nothing -> pure $ VHRunInline mcwd expectZeroExit
                        Just v -> pure $ VHRun mcwd v expectZeroExit
                   ,vhSession
-                  ,VHContinue <$ attributeNoValue "et-continue"]
+                  ,VHContinue <$ attributeNoValue "sb-continue"]
              endingAttributes (Just vh)
             ,errorAttribute
             ,anyAttribute *> startingAttributes
             ,pure Nothing]
     vhSession = do
-        s <- attributeOptionalValue "et-session"
-        pr <- attributeRequiredValue "et-prompt"
+        s <- attributeOptionalValue "sb-session"
+        pr <- attributeRequiredValue "sb-prompt"
 
-        let noInitialText = False <$ attributeNoValue "et-no-initial-text"
+        let noInitialText = False <$ attributeNoValue "sb-no-initial-text"
             etfilter =
-                (,) <$> attributeRequiredValue "et-filter"
-                <*> attributeRequiredValue "et-to"
+                (,) <$> attributeRequiredValue "sb-filter"
+                <*> attributeRequiredValue "sb-to"
         (itx, mcwd, fs) <- P.runPermutation $
             (,,) <$> P.toPermutationWithDefault Nothing (Just <$> noInitialText)
-                <*> P.toPermutationWithDefault Nothing (Just <$> attributeRequiredValue "et-cwd")
+                <*> P.toPermutationWithDefault Nothing (Just <$> attributeRequiredValue "sb-cwd")
                 <*> P.toPermutation (many etfilter)
 
         pure $ VHSession $ SessionOptions mcwd s pr itx fs
@@ -171,18 +171,18 @@ header = do
         choice $
             map (\x -> attributeOptionalValue x *>
                     region (setErrorOffset o) (fail ("unexpected " <> T.unpack x)))
-            ["et-file"
-            ,"et-file-prefix"
-            ,"et-run"
-            ,"et-continue"
-            ,"et-session"
-            ,"et-prompt"
-            ,"et-no-initial-text"
-            ,"et-initial-text"
-            ,"et-filter"
-            ,"et-to"
-            ,"et-non-zero-exit"
-            ,"et-cwd"
+            ["sb-file"
+            ,"sb-file-prefix"
+            ,"sb-run"
+            ,"sb-continue"
+            ,"sb-session"
+            ,"sb-prompt"
+            ,"sb-no-initial-text"
+            ,"sb-initial-text"
+            ,"sb-filter"
+            ,"sb-to"
+            ,"sb-non-zero-exit"
+            ,"sb-cwd"
             ]
 
     --------------------------------------
