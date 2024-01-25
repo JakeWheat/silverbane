@@ -45,6 +45,7 @@ library
                       pcre-utils,
                       deepseq,
                       async,
+                      --text-icu,
 
 executable silverbane
     import:           commonstuff

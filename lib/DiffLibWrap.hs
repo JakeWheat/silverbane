@@ -40,6 +40,8 @@ doDiff D {..} = unsafePerformIO $ do
     a <-e <$> Py.app fn args
     res <- e <$> Py.fromPyObject a
     -- drop the boilerplate
+    -- todo: this would be more robust if it checked these dropped lines look how
+    -- they are expected to look, that they start with ---,+++,@@ respectively
     pure . T.unlines . drop 3 . T.lines $ res
 
 

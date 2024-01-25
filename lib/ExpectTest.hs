@@ -14,7 +14,7 @@ import Prelude hiding (error, show, putStrLn)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Control.Monad (when, void)
+import Control.Monad (void, unless)
 import System.Directory (doesFileExist, canonicalizePath)
 import ProcessUtils (myReadProcess)
 
@@ -48,6 +48,8 @@ import Parse
     )
 import GHC.Stack (HasCallStack)
 
+--import Data.Text.ICU.Normalize2 (compareUnicode)
+
 data ExpectTestError
     = ExpectTestError String Int Text
 
@@ -58,32 +60,25 @@ prettyExpectError :: ExpectTestError -> Text
 prettyExpectError (ExpectTestError fn ln msg) =
         T.pack fn <> ":" <> show ln <> ":0: " <> msg
 
--- TODO: in serious need of refactoring
-expectTest :: String -> Text -> IO [ExpectTestError]
-expectTest fn input = do
-    let ps = either (error . prettyError) id $ parseFile fn input
+textEqual a b = a == b -- compareUnicode [] a b == EQ
 
-    P.initPexpect
-    D.initDiffLibWrap
+showDiff src tgt =
+            "----------\n" <> tgt <> "\n----------\ndiff:\n----------\n" <>
+                D.doDiff (D.D {D.fromName = "x"
+                             ,D.toName = "y"
+                             ,D.fromText = src
+                             ,D.toText = tgt})
+            <> "----------"
 
-    currentSpawn <- newIORef Nothing
-
-    let runSession h prompt sls = do
-            -- extract the prompts
-            let prs = flip mapMaybe sls $ \case
-                    Prompt p -> Just p
-                    Reply {} -> Nothing
-            rs <- flip mapM prs $ \p -> do
-                -- todo: another hack
-                rep <- P.exchange h prompt (T.stripEnd p)
-                -- todo: add some config to turn on debugging logs at runtime
-                --putStrLn $ "Prompt " <> esPrompt et <> " [" <> p <> "]\nReply[" <> rep <> "]"
-                --putStrLn $ show (p `T.isPrefixOf` rep
-                --                ,T.stripEnd p `T.isPrefixOf` T.stripStart rep)
-                pure [Prompt p, Reply rep]
-            pure $ concat rs
         -- todo: strip the whitespace more accurately
-        compareSessions filters tgt sls =
+compareSessions prompt filters tgt sls = do
+    let showSessionDiff prompt doc tgt =
+            let showIt = T.unlines . map (\case
+                            Prompt p -> prompt <> T.strip p
+                            Reply r -> T.strip r)
+            in showDiff (showIt doc) (showIt tgt)
+
+        compareSessionsx filters tgt sls =
             let filterf :: Text -> Text
                 filterf =
                     let mf (re,sub) = Re.substitute (Re.compile re) sub
@@ -115,13 +110,13 @@ expectTest fn input = do
                 f [Reply q] [] | T.all isSpace q = True
                 f [] [] = True
                 f (Prompt t:ts) (Prompt b:bs) =
-                    if T.stripEnd t == T.stripEnd b
+                    if textEqual (T.stripEnd t) (T.stripEnd b)
                     then f ts bs
                     else debugShow t b $ False
                 f (Reply t:ts) (Reply b:bs) =
                     let prepReply = filterf . T.strip
                     in --trace (T.unpack (prepReply t <> "\n\n" <> prepReply b)) $
-                        if prepReply t == prepReply b
+                        if textEqual (prepReply t) (prepReply b)
                         then f ts bs
                         else debugShow t b $ False
                 f _a _b = debugShow (show (_a,_b)) "" False
@@ -141,7 +136,39 @@ expectTest fn input = do
                     then trace (T.unpack ("program produced:\n" <> T.unlines (map show tgt) <> "\n\n/=\n\n"
                                 <> "document says:\n" <> T.unlines (map show sls))) False
                     else False
+    let x = compareSessionsx filters tgt sls
+    if x then pure Nothing
+        else pure $ Just $ "output doesn't match:\n"
+                        -- todo: this doesn't take into account the filters,
+                        -- not sure how should do that ...
+                        <> showSessionDiff prompt sls tgt
 
+
+-- TODO: in serious need of refactoring
+expectTest :: String -> Text -> IO [ExpectTestError]
+expectTest fn input = do
+    let ps = either (error . prettyError) id $ parseFile fn input
+
+    P.initPexpect
+    D.initDiffLibWrap
+
+    currentSpawn <- newIORef Nothing
+
+
+    let runSession h prompt sls = do
+            -- extract the prompts
+            let prs = flip mapMaybe sls $ \case
+                    Prompt p -> Just p
+                    Reply {} -> Nothing
+            rs <- flip mapM prs $ \p -> do
+                -- todo: another hack
+                rep <- P.exchange h prompt (T.stripEnd p)
+                -- todo: add some config to turn on debugging logs at runtime
+                --putStrLn $ "Prompt " <> esPrompt et <> " [" <> p <> "]\nReply[" <> rep <> "]"
+                --putStrLn $ show (p `T.isPrefixOf` rep
+                --                ,T.stripEnd p `T.isPrefixOf` T.stripStart rep)
+                pure [Prompt p, Reply rep]
+            pure $ concat rs
 
     -- lifes too short
     esr <- newIORef []
@@ -150,19 +177,6 @@ expectTest fn input = do
             -- todo: set a ioref flag, so it can get the process exit code right
             modifyIORef esr (ExpectTestError fn ln msg:)
 
-        showDiff src tgt =
-            "----------\n" <> tgt <> "\n----------\ndiff:\n----------\n" <>
-                D.doDiff (D.D {D.fromName = "x"
-                             ,D.toName = "y"
-                             ,D.fromText = src
-                             ,D.toText = tgt})
-            <> "----------"
-        showSessionDiff prompt doc tgt =
-            let showIt = T.unlines . map (\case
-                            Prompt p -> prompt <> T.strip p
-                            Reply r -> T.strip r)
-            in showDiff (showIt doc) (showIt tgt)
-    
     flip mapM_ ps $ \case
         FcFile et -> do
             -- read the file
@@ -174,8 +188,9 @@ expectTest fn input = do
                 then do
                     src1 <- T.readFile sfn
                     -- compare with local
-                    when (efBody et /= src1) $ do
-                        addError (efStartLine et) "files don't match"
+                    unless (textEqual (efBody et) src1) $
+                        addError (efStartLine et) $ "files don't match\n"
+                          <> showDiff (efBody et) src1
                     -- if different, try trimming leading and trailing whitespace lines?
                     -- I think just ask the user to get it right
                 else
@@ -193,13 +208,13 @@ expectTest fn input = do
                 Right (ExitSuccess, tgt)
                     | not (erZeroExit et) ->
                       addError (erStartLine et) $ "process didn't exit with non zero:\n" <> T.pack tgt
-                    | erBody et == T.pack tgt -> pure ()
+                    | textEqual (erBody et) (T.pack tgt) -> pure ()
                     | otherwise ->
                       addError (erStartLine et) $ "output doesn't match:\n" <> showDiff (erBody et) (T.pack tgt)
                 Right (ExitFailure {}, tgt)
                     | erZeroExit et ->
                       addError (erStartLine et) $ "process exited with non zero:\n" <> T.pack tgt
-                    | erBody et == T.pack tgt -> pure ()
+                    | textEqual (erBody et) (T.pack tgt) -> pure ()
                     | otherwise ->
                       addError (erStartLine et) $ "output doesn't match:\n" <> showDiff (erBody et) (T.pack tgt)
         FcSession et -> do
@@ -228,12 +243,8 @@ expectTest fn input = do
                     let tgt = (if esInitialText et `elem` [Just True, Nothing]
                                then (Reply initialText :)
                                else id) rs
-                    if compareSessions (esFilters et) tgt (esSessionLines et)
-                        then pure ()
-                        else addError (esStartLine et) $ "output doesn't match:\n"
-                        -- todo: this doesn't take into account the filters,
-                        -- not sure how should do that ...
-                        <> showSessionDiff (esPrompt et) (esSessionLines et) tgt
+                    m <- compareSessions (esPrompt et) (esFilters et) tgt (esSessionLines et)
+                    maybe (pure ()) (addError (esStartLine et)) m
                     writeIORef currentSpawn (Just (h,esPrompt et, esFilters et))
         FcContinue et -> do
             mh <- readIORef currentSpawn
@@ -241,14 +252,10 @@ expectTest fn input = do
                 Nothing -> addError (ecStartLine et) "continue without previous session"
                 Just (h, prompt, filters) -> do
                     tgt <- runSession h prompt (ecSessionLines et)
-                    if compareSessions filters tgt (ecSessionLines et)
-                        then pure ()
-                        else addError (ecStartLine et) $ "output doesn't match:\n"
-                             <> showSessionDiff prompt (ecSessionLines et) tgt
+                    m <- compareSessions prompt filters tgt (ecSessionLines et)
+                    maybe (pure ()) (addError (ecStartLine et)) m
     es <- readIORef esr
     pure $ reverse es
-
--- todo: add callstack
 
 error :: HasCallStack => Text -> a
 error = Pr.error . T.unpack
