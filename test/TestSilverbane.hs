@@ -12,7 +12,7 @@ and see if there's enough direct pexpect tests
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
-module TestExpectTest (expectTestTests) where
+module TestSilverbane (silverbaneTests) where
 
 import qualified Text.RawString.QQ as R
 
@@ -22,23 +22,23 @@ import Test.Hspec
     ,describe
     )
 
-import ExpectTest as E
+import qualified Silverbane as S
 import qualified Data.Text as T
 import Data.Text (Text)
 import Utils
 
-expectTestTests :: SpecWith ()
-expectTestTests = describe "expect tests" $ do
-    mapM_ (\(a,b,c) -> makeExpectTestTest a b c) expectTestExamples
+silverbaneTests :: SpecWith ()
+silverbaneTests = describe "silverbane tests" $ do
+    mapM_ (\(a,b,c) -> makeSilverbaneTest a b c) silverbaneExamples
 
-makeExpectTestTest :: Text -> Text -> [Text] -> SpecWith ()
-makeExpectTestTest nm src tgt =
-    it (T.unpack nm) $ expectTest (T.unpack nm) src `expectErrorsShouldMatch` tgt
+makeSilverbaneTest :: Text -> Text -> [Text] -> SpecWith ()
+makeSilverbaneTest nm src tgt =
+    it (T.unpack nm) $ S.checkDocument (T.unpack nm) src `silverbaneErrorsShouldMatch` tgt
 
 -- avoid testing syntax variations that are handled in the parser tests
 
-expectTestExamples :: [(Text,Text,[Text])]
-expectTestExamples =
+silverbaneExamples :: [(Text,Text,[Text])]
+silverbaneExamples =
     [--------------------------------------
      --  file tests
      ("file", [R.r|
@@ -473,7 +473,7 @@ line1
 line2
 line3
 ~~~~
-|], ["session process didn't start"])
+|], ["The command was not found or was not executable: wython3."])
 
         -- todo: catch this specific situation and give a better error message
         ,("continue after session run fails", [R.r|
@@ -489,7 +489,7 @@ line3
 8
 ~~~~
 
-|], ["session process didn't start", "continue without previous session" ])
+|], ["The command was not found or was not executable: wython3.", "continue without previous session" ])
 
     -- session exiting unexpectedly in the middle
 

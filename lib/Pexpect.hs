@@ -1,8 +1,9 @@
 {-
 
 Project specific wrapper for pexpect. It's ugly, and has a bunch of
-problems which aren't important for this project (such as accurate
-leading and trailing whitespace handling).
+questionable bits which aren't important for this project (such as
+accurate leading and trailing whitespace handling, and automatically
+removing echo'd sendlines, not even sure why this is happening).
 
 To fix this:
 
@@ -10,6 +11,9 @@ option 1: fix python-wrapper
 option 2: replace this code completely
   2a: another haskell python wrapper
   2b: implement an expect clone directly in haskell
+
+and figure out why sendlines are sometimes echo'd (I think it doesn't
+do it with python, but does with ghci?)
 
 -}
 

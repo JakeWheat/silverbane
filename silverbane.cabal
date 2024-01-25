@@ -27,11 +27,13 @@ library
     import:           commonstuff
     exposed-modules:  Pexpect
                       Parse
-                      ExpectTest
                       RegexReplace
                       ProcessUtils
                       DiffLibWrap
                       RunActions
+                      CheckAssertions
+                      Assertion
+                      Silverbane
     hs-source-dirs:   lib
     build-depends:    base ^>=4.19.0.0,
                       python-wrapper,
@@ -61,7 +63,7 @@ test-suite silverbane-test
     other-modules:    TestPexpect
                       TestParse
                       Utils
-                      TestExpectTest
+                      TestSilverbane 
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Main.hs

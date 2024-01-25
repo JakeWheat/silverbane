@@ -1,4 +1,11 @@
+{-
 
+Wrap a call to python difflib - so can display a human readable diff
+when two chunks of text don't match
+
+TODO: maybe tune it if the expected text is empty or only whitespace
+
+-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 module DiffLibWrap

@@ -1,8 +1,15 @@
+{-
 
+TODO: every wrapper on a hspec assertion should do what it needs so
+that if the test fails, the correct source line is pointed to in the
+hspec output. This isn't happening at the moment, not sure how it's
+supposed to be done.
+
+-}
 {-# LANGUAGE OverloadedStrings #-}
 module Utils
     (shouldFailContains
-    ,expectErrorsShouldMatch
+    ,silverbaneErrorsShouldMatch
     ) where
 
 import Test.Hspec
@@ -22,7 +29,7 @@ import qualified Data.Text as T
 import Data.Text (Text)
 
 import Control.Monad (unless)
-import ExpectTest as E
+import qualified CheckAssertions as C
 
 shouldFailContains ::
     (HasCallStack, ShowErrorComponent e,
@@ -43,25 +50,25 @@ shouldFailContains r errText = case r of
 
 {-
 TODO:
-show unmatched lines from both sides
+show unmatched errors from both sides
 
 want to still show the matched ones too because this can help with debugging a test
 -}
-expectErrorsShouldMatch ::
+silverbaneErrorsShouldMatch ::
     HasCallStack =>
-    IO [E.ExpectTestError] ->
+    IO [C.SilverbaneError] ->
     [Text] ->
     Expectation
-expectErrorsShouldMatch gotA [] = do
+silverbaneErrorsShouldMatch gotA [] = do
     got <- gotA
-    let ps = map E.prettyExpectError got
+    let ps = map C.prettyError got
     unless (null got) $
         expectationFailure
         $ "unexpected errors:\n"
            <> unlines (map T.unpack ps)
-expectErrorsShouldMatch gotA expectedMatches = do
+silverbaneErrorsShouldMatch gotA expectedMatches = do
     got <- gotA
-    let ps = map E.prettyExpectError got
+    let ps = map C.prettyError got
         foundMatch em = or $ map (em `T.isInfixOf`) ps
         passes = and $ map foundMatch expectedMatches
     unless passes $

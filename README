@@ -1,16 +1,54 @@
 
-This tool serves two purposes:
+# Silverbane
 
-Document based testing:
+Document based testing: test transcripts of running command line
+programs, including interactive ones, in documentation - so you can
+check your documentation is correct.
 
-Test transcripts of running command line programs, including
-interactive ones, in documentation - so you can check your
-documentation is correct.
+This program exists because I had a variety of documentation for
+various projects, which contained transcripts of running command
+lines, and of running interactive command line programs, and I wanted
+to check the examples were correct easily.
 
-Direct testing:
+## Example
 
-Write tests for the output of running command line programs, and for
-the output of interactive sessions with repl style or similar command
-line programs. Not sure if it's the best tool for this, but it does
-allow you to write documentation with your tests.
+~~~~ {file=mydoc.md}
+
+This is an example of using python as a simple calculator:
+
+TODO: how do you nest ~~~~ inside ~~~~
+  -> pandoc has a way, copy that
+ ~~~~{...}
+>>> 1 + 2
+4
+
+ ~~~~
+
+~~~~
+
+TODO: show output when running this program
+
+
+(The examples in this README file are checked with Silverbane.)
+
+# Guide
+
+The tool reads arbitrary text files, and picks out the interesting bits to check.
+
+The things it can check are: 
+
+* if an inline quote of a file matches the file on disk
+* if running a command produces the output shown in the document
+* if running an interactive command line program, sending the input in
+  the document gives the output in the document
+
+
+## files
+
+## checking command lines
+
+## checking interactive command lines
+
+
+
 

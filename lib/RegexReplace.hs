@@ -1,6 +1,6 @@
 
--- one liner in a normal language
--- either I missed something simple, or it ain't the year of haskell yet.
+-- one liner in a normal language, either I missed something simple,
+-- or it ain't the year of haskell yet.
 
 module RegexReplace
     (Re.Regex

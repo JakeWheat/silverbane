@@ -4,7 +4,7 @@ module Main (main) where
 import TestPexpect (initPexpectTest, pexpectTest)
 
 import TestParse (parseTests)
-import  TestExpectTest (expectTestTests)
+import TestSilverbane (silverbaneTests)
 
 import Test.Hspec (hspec)
 
@@ -14,4 +14,4 @@ main = do
     hspec $ do
         pexpectTest
         parseTests
-        expectTestTests
+        silverbaneTests

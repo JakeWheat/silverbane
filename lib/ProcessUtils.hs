@@ -1,3 +1,14 @@
+{-
+a simple variation on System.Process.readProcess
+
+takes a command line as a string, then the process library can
+   handle quoted arguments however it does
+
+combines stdout and stderr so it looks the same as if you run it on
+the command line. I have absolutely no idea why this isn't a standard
+function in these sorts of libraries.
+
+-}
 {-# LANGUAGE RankNTypes #-}
 module ProcessUtils
     (myReadProcess

@@ -21,6 +21,15 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Utils (shouldFailContains)
 
+import Assertion
+    (FileChunk(..)
+    ,EtFile(..)
+    ,EtRun(..)
+    ,EtSession(..)
+    ,EtContinue(..)
+    ,SessionLine(..)
+    )
+
 parseTests :: SpecWith ()
 parseTests = describe "parse" $ do
     describe "header errors" $ mapM_ (uncurry makeErrorHeaderTest) errorHeaders

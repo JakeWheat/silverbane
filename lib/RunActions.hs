@@ -1,4 +1,11 @@
+{-
 
+Take the assertions parsed from a document, and run the IO actions
+corresponding to them (without any checking, which is done in
+CheckAssertions). This includes reading files, running command lines
+and interactive command lines.
+
+-}
 {-# LANGUAGE LambdaCase #-}
 module RunActions
     (runActions
@@ -11,7 +18,7 @@ module RunActions
 
 import GHC.Stack (HasCallStack)
 
-import Parse
+import Assertion
     (FileChunk(..)
     ,EtFile(..)
     ,EtRun(..)
@@ -60,7 +67,8 @@ data ActionedFileChunk
 
 data AFile
     = AFileNotFound String -- canonicalized name
-    | AFileContents (Either Text (String,Text)) -- error when reading or canonicalized name, file contents
+    | AFileReadError String Text
+    | AFileContents String Text
     deriving (Eq,Show)
 
 data ARun
@@ -76,7 +84,7 @@ data ASession
 
 data AContinue
     = AContinueNoSession
-    | AContinue [SessionLine]
+    | AContinue EtSession [SessionLine]
     deriving (Eq,Show)
 
 ------------------------------------------------------------------------------
@@ -85,19 +93,23 @@ type RunAction = ReaderT MyState IO
 
 data MyState
     = MyState
-    {documentDir :: String
+    {documentPath :: String
     ,sessionState :: IORef (Maybe SessionState)
     }
 
 data SessionState
     = SessionState
     {stHandle :: P.Pexpect
-    ,stPrompt :: Text}
+    ,stSess :: EtSession
+    }
     
 runActions :: String -> [FileChunk] -> IO [ActionedFileChunk]
-runActions docDir fcs = do
+runActions docPath fcs = do
+
+    P.initPexpect
+
     st <- newIORef Nothing
-    flip runReaderT (MyState docDir st) $ flip mapM fcs $ \case
+    flip runReaderT (MyState docPath st) $ flip mapM fcs $ \case
         FcFile a -> AfcFile a <$> runFileAction a
         FcRun a -> AfcRun a <$> runRunAction a
         FcSession a -> AfcSession a <$> runSessionAction a
@@ -107,24 +119,24 @@ runActions docDir fcs = do
 
 runFileAction :: EtFile -> RunAction AFile
 runFileAction et = do
-    docDir <- asks documentDir
-    sfn <- liftIO $ canonicalizePath (takeDirectory docDir </> T.unpack (efFilename et))
+    docPath <- asks documentPath
+    sfn <- liftIO $ canonicalizePath (takeDirectory docPath </> T.unpack (efFilename et))
     e <- liftIO $ doesFileExist sfn
     if e
         then do
             -- todo: add try to readfile call
             src1 <- liftIO $ T.readFile sfn
-            pure $  AFileContents (Right (sfn, src1))
+            pure $  AFileContents sfn src1
         else pure $ AFileNotFound sfn
 
 ------------------------------------------------------------------------------
 
 runRunAction :: EtRun -> RunAction ARun
 runRunAction et = do
-    docDir <- asks documentDir
+    docPath <- asks documentPath
 
-    let wd = Just $ maybe (takeDirectory docDir)
-                    ((takeDirectory docDir </>) . T.unpack)
+    let wd = Just $ maybe (takeDirectory docPath)
+                    ((takeDirectory docPath </>) . T.unpack)
                     (erCwd et)
     eres <- tryAny $ liftIO $ myReadProcess wd (T.unpack $ erCmd et) ""
     case eres of
@@ -145,9 +157,9 @@ runSessionAction et = do
             liftIO $ writeIORef sessRef Nothing
 
     eh <- tryAny $ do
-        docDir <- asks documentDir
-        let wd = Just . T.pack $ maybe (takeDirectory docDir)
-                  ((takeDirectory docDir </>) . T.unpack)
+        docPath <- asks documentPath
+        let wd = Just . T.pack $ maybe (takeDirectory docPath)
+                  ((takeDirectory docPath </>) . T.unpack)
                   (esCwd et)
         h <- liftIO $ P.spawn wd (esCmd et)
         -- no idea how to get this so it catches the exception
@@ -163,7 +175,7 @@ runSessionAction et = do
             pure $ ASessionFailed $ showT e
         Right (h, initialText) -> do
             rs <- liftIO $ runSession h (esPrompt et) (esSessionLines et)
-            liftIO $ writeIORef sessRef $ Just $ SessionState h (esPrompt et)
+            liftIO $ writeIORef sessRef $ Just $ SessionState h et
             pure $ ASession (Reply initialText : rs)
 
 ------------------------------------------------------------------------------
@@ -192,8 +204,8 @@ runContinueAction et = do
     ms <- liftIO $ readIORef sessRef
     case ms of
         Nothing -> pure $ AContinueNoSession
-        Just ss -> AContinue <$> liftIO (runSession (stHandle ss) (stPrompt ss) (ecSessionLines et))
-
+        Just ss -> AContinue (stSess ss) <$>
+            liftIO (runSession (stHandle ss) (esPrompt $ stSess ss) (ecSessionLines et))
 
 ------------------------------------------------------------------------------
 
