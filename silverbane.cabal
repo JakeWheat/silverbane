@@ -46,6 +46,7 @@ library
                       filepath,
                       safe-exceptions,
                       pcre-utils,
+                      regex-pcre-builtin,
                       deepseq,
                       async,
                       --text-icu,

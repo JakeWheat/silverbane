@@ -308,26 +308,27 @@ getSourceLine = unPos . sourceLine <$> getSourcePos
 filex :: Parser (Maybe FileChunk)
 filex = choice
    [do
-    o <- getSourceLine       
+    sl <- getSourceLine
+    o <- getOffset
     vh <- header
     case vh of
         Nothing -> pure Nothing
         Just (VHFile nm) -> do
             bdy <- simpleBody
-            pure . Just . FcFile $ EtFile o nm bdy
-        Just (VHFilePrefix pr) -> Just . FcFile <$> fileInlineBody o pr
+            pure . Just . FcFile $ EtFile sl nm bdy
+        Just (VHFilePrefix pr) -> Just . FcFile <$> fileInlineBody sl pr
         Just (VHRun mcwd cmd zeroExit) -> do
             bdy <- simpleBody
-            pure . Just . FcRun $ EtRun o mcwd cmd zeroExit bdy
-        Just (VHRunInline mcwd zeroExit) -> Just . FcRun <$> runInline o mcwd zeroExit
+            pure . Just . FcRun $ EtRun sl mcwd cmd zeroExit bdy
+        Just (VHRunInline mcwd zeroExit) -> Just . FcRun <$> runInline sl mcwd zeroExit
         Just (VHSession (SessionOptions {..})) -> do
             put (Just soPrompt)
-            Just . FcSession <$> session o soCwd soCmdline soPrompt soInitialText soFilters
+            Just . FcSession <$> session sl soCwd soCmdline soPrompt soInitialText soFilters
         Just VHContinue -> do
             mprompt <- get
             case mprompt of
                 Nothing -> region (setErrorOffset o) (fail "continue block without preceding session block")
-                Just prompt -> Just . FcContinue <$> continue o prompt
+                Just prompt -> Just . FcContinue <$> continue sl prompt
    ,do
     void $ takeWhileP (Just "text") (/= '\n')
     void (char '\n') <|> eof

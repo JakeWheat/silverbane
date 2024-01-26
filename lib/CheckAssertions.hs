@@ -180,11 +180,13 @@ compareSessions docPath lne prompt filters docSls processSls =
     remoteWhitespaceOnly (Prompt x : xs) | T.all isSpace x = remoteWhitespaceOnly xs
     remoteWhitespaceOnly (x:xs) = x : remoteWhitespaceOnly xs
 
-    filterItem (Prompt p) = Prompt $ T.strip p
+    filterf :: Text -> Text
+    filterf = let mf (re,sub) = Re.substitute (Re.compile re) sub
+              in foldr (.) id $ map mf filters
+    filterItem (Prompt p) =
+        Prompt $ filterf p
     filterItem (Reply r) = 
-        let filterf :: Text -> Text
-            filterf = let mf (re,sub) = Re.substitute (Re.compile re) sub
-                      in foldr (.) id $ map mf filters
+        let 
         in Reply $ filterf $ T.strip $ r
 
     showSls =

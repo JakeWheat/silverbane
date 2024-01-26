@@ -9,7 +9,7 @@ module RegexReplace
     ) where
     
 import qualified Text.Regex.PCRE.ByteString.Utils as Re (substitute', compile', Regex)
-
+import Text.Regex.PCRE.ByteString (compMultiline)
 import Data.Text.Encoding (decodeUtf8Lenient, encodeUtf8)
 import Data.Text (Text)
 
@@ -26,4 +26,4 @@ substitute re sub src =
     decodeUtf8Lenient $ either (error . show) id $ Re.substitute' re (encodeUtf8 src) (encodeUtf8 sub)
 
 compile :: Text -> Re.Regex
-compile b = either (error . show) id $ Re.compile' 0 0 (encodeUtf8 b)
+compile b = either (error . show) id $ Re.compile' compMultiline 0 (encodeUtf8 b)
