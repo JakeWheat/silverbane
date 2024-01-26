@@ -7,6 +7,7 @@ into assertions.
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 module Parse
     (parseFile
     ,prettyError
@@ -21,6 +22,7 @@ module Parse
     ,sessionBody
     ,inlineCmdSessionBody
     ,file
+    ,eof
     ) where
 
 import           Data.Char                       (isSpace)
@@ -112,19 +114,24 @@ lexeme :: Parser a -> Parser a
 lexeme p = p <* void (optional nonnewlinewhitespace)
 
 
+blockStart :: Parser Text
+blockStart = fst <$> (match $ do
+    void $ chunk "~~~"
+    void $ takeWhileP (Just "~") (=='~'))
+
 -- returns the line including the newline at the end if there is one
 -- (this is not very efficient, but good enough for now)
 -- if matches any sb- attributes, returns all the attributes parsed out as well
-header :: Parser (Maybe ValidatedHeader)
+header :: Parser (Maybe (Text, ValidatedHeader))
 header = do
-    void $ lexeme $ chunk "~~~~"
+    startToken <- lexeme $ blockStart
     vh' <- optional $ do
         void $ lexeme $ char '{'
         vh <- startingAttributes <|> pure Nothing
         void $ lexeme $ char '}'
         pure vh
     void (char '\n') <|> eof
-    pure $ join vh'
+    pure $ (startToken,) <$> join vh'
   where
     startingAttributes :: Parser (Maybe ValidatedHeader)
     -- todo: this is a complete mess
@@ -258,13 +265,13 @@ etfilter :: Parser (Text,Text)
 etfilter = (,) <$> attributeRequiredValue "sb-filter"
                 <*> attributeRequiredValue "sb-to"
 
--- parse a mix of prompts and replies until ~~~~, if hit eof before
+-- parse a mix of prompts and replies until ~~~, if hit eof before
 -- this, give an error
-sessionBody :: Text -> Parser [SessionLine]
-sessionBody prompt = line
+sessionBody :: Text -> Text -> Parser [SessionLine]
+sessionBody endToken prompt = line
   where
     line = endBody <|> promptLine <|> reply
-    endBody = chunk "~~~~" *> (void (char '\n') <|> eof) *> pure []
+    endBody = chunk endToken *> (void (char '\n') <|> eof) *> pure []
     promptLine = do
         p <- chunk prompt *>
              (match $ do
@@ -276,34 +283,34 @@ sessionBody prompt = line
         void $ char '\n'
         choice
             [lookAhead (chunk prompt) *> pure ()
-            ,lookAhead (chunk "~~~~") *> pure ()
+            ,lookAhead (chunk endToken) *> pure ()
             ,anotherReplyLine]
     reply = do
         x <- match anotherReplyLine
         (Reply (fst x):) <$> line
 
 -- parse the starting inline command, then a prompt body
-inlineCmdSessionBody :: Text -> Parser (Text, [SessionLine])
-inlineCmdSessionBody prompt = do
+inlineCmdSessionBody :: Text -> Text -> Parser (Text, [SessionLine])
+inlineCmdSessionBody endToken prompt = do
     void $ chunk "$ "
     cmd <- match (do
         void $ takeWhileP (Just "command text") (/= '\n')
         void $ char '\n')
            
-    b <- sessionBody prompt
+    b <- sessionBody endToken prompt
     pure $ (fst cmd, b)
 
-simpleBody :: Parser Text
-simpleBody = do
+simpleBody :: Text -> Parser Text
+simpleBody endToken = do
     b <- match lne
-    void $ chunk "~~~~"
+    void $ chunk endToken
     void (char '\n') <|> eof
     pure $ fst b
  where
     lne = choice
         [do
          lookAhead $ do       
-             void $ chunk "~~~~"
+             void $ chunk endToken
              void (char '\n') <|> eof
          pure ()
         ,do
@@ -326,29 +333,29 @@ filex = choice
     vh <- header
     case vh of
         Nothing -> pure Nothing
-        Just (VHFile nm) -> do
-            bdy <- simpleBody
+        Just (startToken, VHFile nm) -> do
+            bdy <- simpleBody startToken
             pure . Just . FcFile $ EtFile sl nm bdy
-        Just (VHFilePrefix pr) -> Just . FcFile <$> fileInlineBody sl pr
-        Just (VHRun mcwd cmd zeroExit) -> do
-            bdy <- simpleBody
+        Just (startToken, VHFilePrefix pr) -> Just . FcFile <$> fileInlineBody startToken sl pr
+        Just (startToken, VHRun mcwd cmd zeroExit) -> do
+            bdy <- simpleBody startToken
             pure . Just . FcRun $ EtRun sl mcwd cmd zeroExit bdy
-        Just (VHRunInline mcwd zeroExit) -> Just . FcRun <$> runInline sl mcwd zeroExit
-        Just (VHSession (SessionOptions {..})) -> do
+        Just (startToken, VHRunInline mcwd zeroExit) -> Just . FcRun <$> runInline startToken sl mcwd zeroExit
+        Just (startToken, VHSession (SessionOptions {..})) -> do
             put (Just soPrompt)
-            Just . FcSession <$> session sl soCwd soCmdline soPrompt soInitialText soFilters
-        Just VHContinue -> do
+            Just . FcSession <$> session startToken sl soCwd soCmdline soPrompt soInitialText soFilters
+        Just (startToken, VHContinue) -> do
             mprompt <- get
             case mprompt of
                 Nothing -> region (setErrorOffset o) (fail "continue block without preceding session block")
-                Just prompt -> Just . FcContinue <$> continue sl prompt
+                Just prompt -> Just . FcContinue <$> continue startToken sl prompt
    ,do
     void $ takeWhileP (Just "text") (/= '\n')
     void (char '\n') <|> eof
     pure Nothing]
 
-session :: Int -> Maybe Text -> Maybe Text -> Text -> Maybe Bool -> [(Text,Text)] -> Parser EtSession
-session ln mcwd mcmd prompt mInitialText flts = do
+session :: Text -> Int -> Maybe Text -> Maybe Text -> Text -> Maybe Bool -> [(Text,Text)] -> Parser EtSession
+session startToken ln mcwd mcmd prompt mInitialText flts = do
     cmd <- case mcmd of
         Just x -> pure x
         Nothing -> do
@@ -356,26 +363,26 @@ session ln mcwd mcmd prompt mInitialText flts = do
             cmdx <- takeWhile1P (Just "command line") (/= '\n')
             void $ char '\n'
             pure cmdx
-    sl <- sessionBody prompt
+    sl <- sessionBody startToken prompt
     pure $ EtSession ln mcwd cmd prompt mInitialText flts sl
 
-continue :: Int -> Text -> Parser EtContinue
-continue ln prompt = do
-    sl <- sessionBody prompt
+continue :: Text -> Int -> Text -> Parser EtContinue
+continue startToken ln prompt = do
+    sl <- sessionBody startToken prompt
     pure $ EtContinue ln sl
 
 
-runInline :: Int -> Maybe Text -> Bool -> Parser EtRun
-runInline ln mcwd zeroExit = do
+runInline :: Text -> Int -> Maybe Text -> Bool -> Parser EtRun
+runInline startToken ln mcwd zeroExit = do
     void $ chunk "$ "
     cmd <- takeWhile1P (Just "command line") (/= '\n')
     void $ char '\n'
-    bdy <- simpleBody
+    bdy <- simpleBody startToken
     pure $ EtRun ln mcwd cmd zeroExit bdy
     
     
-fileInlineBody :: Int -> Text -> Parser EtFile
-fileInlineBody ln pr = do
+fileInlineBody :: Text -> Int -> Text -> Parser EtFile
+fileInlineBody startToken ln pr = do
     void $ many whitespaceOnlyLine
     void $ lexeme (chunk pr)
     fn <- choice
@@ -383,7 +390,7 @@ fileInlineBody ln pr = do
            *> lexeme (takeWhile1P (Just "filename") (not . isSpace))
           ,lexeme (takeWhile1P (Just "filename") (not . isSpace))]
     void $ char '\n'
-    bdy <- simpleBody
+    bdy <- simpleBody startToken
     pure  $ EtFile ln fn bdy
 
 whitespaceOnlyLine :: Parser ()

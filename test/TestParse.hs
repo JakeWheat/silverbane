@@ -12,7 +12,6 @@ import Test.Hspec
     )
 
 import Test.Hspec.Megaparsec (shouldParse)
-import           Text.Megaparsec (eof)
 
 import qualified Text.RawString.QQ as R
 import Parse as P
@@ -96,7 +95,9 @@ sb-filter="" sb-to=""
 
 makeValidatedHeaderTest :: HasCallStack => Text -> ValidatedHeader -> SpecWith ()
 makeValidatedHeaderTest input tgt = 
-    it ("validated header: " <> quickShow input) $ myRunParse (header <* eof) "" input `shouldParse` Just tgt
+    it ("validated header: " <> quickShow input) $ p `shouldParse` Just tgt
+  where
+    p =  myRunParse ((fmap snd <$> header) <* eof) "" input
 
 testOKHeader :: SpecWith ()
 testOKHeader =
@@ -159,7 +160,7 @@ validatedHeaders =
 
 makeBodyTest :: HasCallStack => Text -> Text -> [SessionLine] -> SpecWith ()
 makeBodyTest prompt input tgt = 
-    it ("body: " <> quickShow input) $ myRunParse (sessionBody prompt <* eof) "" input `shouldParse` tgt
+    it ("body: " <> quickShow input) $ myRunParse (sessionBody "~~~~" prompt <* eof) "" input `shouldParse` tgt
 
 bodies :: [(Text, Text, [SessionLine])]
 bodies =
@@ -191,7 +192,7 @@ ghci> 1 + 2
 
 makeInlineBodyTest :: HasCallStack => Text -> Text -> (Text, [SessionLine]) -> SpecWith ()
 makeInlineBodyTest prompt input tgt = 
-    it ("body: " <> quickShow input) $ myRunParse (inlineCmdSessionBody prompt <* eof) "" input `shouldParse` tgt
+    it ("body: " <> quickShow input) $ myRunParse (inlineCmdSessionBody "~~~~" prompt <* eof) "" input `shouldParse` tgt
 
 inlineBodies :: [(Text, Text, Text, [SessionLine])]
 inlineBodies =
@@ -293,11 +294,27 @@ stuff1
 stuff2
 ~~~~
 
-
 |], [FcFile (EtFile 3 "myfile" "stuff\n")
     ,FcFile (EtFile 8 "myfile1" "stuff1\n")
     ,FcFile (EtFile 14 "myfile2" "stuff2\n")
     ])
+
+    ,([R.r|
+
+code blocks with fences
+~~~~~~{sb-file=myfile}
+~~~~{sb-file=myfile2}
+stuff
+stuff
+~~~~
+stuff
+~~~~~~
+|], [FcFile (EtFile 4 "myfile" [R.r|~~~~{sb-file=myfile2}
+stuff
+stuff
+~~~~
+stuff
+|])])
 
     ,([R.r|
 
