@@ -20,7 +20,6 @@ import Parse as P
 
 main :: IO ()
 main = do
-   
     as <- getArgs
     case as of
         [x] -> checkDoc x
