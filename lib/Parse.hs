@@ -11,6 +11,8 @@ module Parse
     (parseFile
     ,prettyError
 
+    ,parseFilters
+
     -- testing
     ,ValidatedHeader(..)
     ,SessionOptions(..)
@@ -96,6 +98,9 @@ myRunParse p name input = evalState (runParserT p name input) Nothing
 parseFile :: String -> Text -> Either MyParseError [FileChunk]
 parseFile name input = myRunParse (file <* eof) name input
 
+parseFilters :: Text -> Either MyParseError [(Text,Text)]
+parseFilters input = myRunParse (optional nonnewlinewhitespace *> many etfilter <* eof) "" input
+
 nonnewlinewhitespace :: Parser ()
 nonnewlinewhitespace =
     void $ takeWhile1P (Just "whitespace") isNonNewlineWhitespace
@@ -150,9 +155,6 @@ header = do
         pr <- attributeRequiredValue "sb-prompt"
 
         let noInitialText = False <$ attributeNoValue "sb-no-initial-text"
-            etfilter =
-                (,) <$> attributeRequiredValue "sb-filter"
-                <*> attributeRequiredValue "sb-to"
         (itx, mcwd, fs) <- P.runPermutation $
             (,,) <$> P.toPermutationWithDefault Nothing (Just <$> noInitialText)
                 <*> P.toPermutationWithDefault Nothing (Just <$> attributeRequiredValue "sb-cwd")
@@ -192,58 +194,69 @@ header = do
         void (iden <?> "attributeName")
         void $ optional $ equalsAndOptionalAttributeValue
 
-    attributeNoValue :: Text -> Parser ()
-    attributeNoValue nm = lexeme $ do
-        specificIden nm
-        choice
-            [do
-             void $ char '='
-             choice
-                [satisfy unquotedChar *> fail ("attribute should not have value: " <> T.unpack nm)
-                ,pure ()]
+attributeNoValue :: Text -> Parser ()
+attributeNoValue nm = lexeme $ do
+    specificIden nm
+    choice
+        [do
+         void $ char '='
+         choice
+            [satisfy unquotedChar *> fail ("attribute should not have value: " <> T.unpack nm)
             ,pure ()]
+        ,pure ()]
 
-    attributeRequiredValue :: Text -> Parser Text
-    attributeRequiredValue nm = lexeme $ do
-        specificIden nm
-        void $ char '='
-        attributeValue
+attributeRequiredValue :: Text -> Parser Text
+attributeRequiredValue nm = lexeme $ do
+    specificIden nm
+    void $ char '='
+    attributeValue
 
-    attributeOptionalValue :: Text -> Parser (Maybe Text)
-    attributeOptionalValue nm = lexeme $ do
-        specificIden nm
-        equalsAndOptionalAttributeValue
-    
-    equalsAndOptionalAttributeValue :: Parser (Maybe Text)
-    equalsAndOptionalAttributeValue = lexeme $ do
-        choice
-            [do
-             void $ char '='
-             choice [Nothing <$ emptyAttributeValue
-                    ,Just <$> attributeValue ] <?> "attribute value"
-            ,pure Nothing]
-    emptyAttributeValue :: Parser ()
-    emptyAttributeValue = lexeme $
-        -- parse attr= with nothing following the = as empty attribute
-        -- the trick is, to make sure the = is followed by a valid char
-        -- this has to be } or whitespace
-        void (lookAhead (char '}')) <|> void (lookAhead (satisfy isNonNewlineWhitespace <?> "whitespace"))
+attributeOptionalValue :: Text -> Parser (Maybe Text)
+attributeOptionalValue nm = lexeme $ do
+    specificIden nm
+    equalsAndOptionalAttributeValue
 
-    attributeValue = (iden <|> quoted <|> doubleQuoted) <?> "attribute value"
+equalsAndOptionalAttributeValue :: Parser (Maybe Text)
+equalsAndOptionalAttributeValue = lexeme $ do
+    choice
+        [do
+         void $ char '='
+         choice [Nothing <$ emptyAttributeValue
+                ,Just <$> attributeValue ] <?> "attribute value"
+        ,pure Nothing]
+emptyAttributeValue :: Parser ()
+emptyAttributeValue = lexeme $
+    -- parse attr= with nothing following the = as empty attribute
+    -- the trick is, to make sure the = is followed by a valid char
+    -- this has to be } or whitespace
+    void (lookAhead (char '}')) <|> void (lookAhead (satisfy isNonNewlineWhitespace <?> "whitespace"))
 
-    specificIden :: Text -> Parser ()
-    specificIden nm = do
-        void (chunk nm) <* notFollowedBy (satisfy unquotedChar)
+attributeValue :: Parser Text
+attributeValue = (iden <|> quoted <|> doubleQuoted) <?> "attribute value"
 
-    iden :: Parser Text
-    iden = takeWhile1P (Just "iden char") unquotedChar
-    
-    between' c = between (char c) (char c)
-    quoted = between' '\'' $ takeWhileP (Just "character") (`notElem` ("'\n" :: [Char]))
-    doubleQuoted = between' '"' $ takeWhileP (Just "character") (`notElem` ("\"\n" :: [Char]))
-    -- don't let any of the unquoted chars be { or }
-    unquotedChar = (`notElem` ("\"'>/={} \t\n" :: [Char]))
+specificIden :: Text -> Parser ()
+specificIden nm = do
+    void (chunk nm) <* notFollowedBy (satisfy unquotedChar)
 
+iden :: Parser Text
+iden = takeWhile1P (Just "iden char") unquotedChar
+
+between' :: Char -> Parser a -> Parser a
+between' c = between (char c) (char c)
+
+quoted :: Parser Text
+quoted = between' '\'' $ takeWhileP (Just "character") (`notElem` ("'\n" :: [Char]))
+
+doubleQuoted :: Parser Text
+doubleQuoted = between' '"' $ takeWhileP (Just "character") (`notElem` ("\"\n" :: [Char]))
+
+-- don't let any of the unquoted chars be { or }
+unquotedChar :: Char -> Bool
+unquotedChar = (`notElem` ("\"'>/={} \t\n" :: [Char]))
+
+etfilter :: Parser (Text,Text)
+etfilter = (,) <$> attributeRequiredValue "sb-filter"
+                <*> attributeRequiredValue "sb-to"
 
 -- parse a mix of prompts and replies until ~~~~, if hit eof before
 -- this, give an error
@@ -335,7 +348,7 @@ filex = choice
     pure Nothing]
 
 session :: Int -> Maybe Text -> Maybe Text -> Text -> Maybe Bool -> [(Text,Text)] -> Parser EtSession
-session ln mcwd mcmd prompt mInitialText filters = do
+session ln mcwd mcmd prompt mInitialText flts = do
     cmd <- case mcmd of
         Just x -> pure x
         Nothing -> do
@@ -344,7 +357,7 @@ session ln mcwd mcmd prompt mInitialText filters = do
             void $ char '\n'
             pure cmdx
     sl <- sessionBody prompt
-    pure $ EtSession ln mcwd cmd prompt mInitialText filters sl
+    pure $ EtSession ln mcwd cmd prompt mInitialText flts sl
 
 continue :: Int -> Text -> Parser EtContinue
 continue ln prompt = do
