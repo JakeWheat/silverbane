@@ -95,7 +95,7 @@ checkARun docPath et = \case
         if (erBody et) == out
         then []
         else [SilverbaneError docPath (erStartLine et)
-              $ "document doesn't match output:\n" <> showDiff (erBody et) out]
+              $ "document block doesn't match output:\n" <> showDiff (erBody et) out]
 
 ------------------------------------------------------------------------------
 
@@ -125,17 +125,30 @@ checkAContinue docPath et (AContinue etc sls) =
 
 showDiff' :: Text -> Text -> Text -> Text
 showDiff' src tgt showTgt =
-    T.unlines
+    myUnlines
     ["----------"
     ,showTgt
     ,"----------"
-    ,"diff from doc to actual output:"
+    ,"diff from document to program output:"
     ,"----------"
     ,D.doDiff (D.D {D.fromName = "x"
                    ,D.toName = "y"
                    ,D.fromText = src
                    ,D.toText = tgt})
     ,"----------"]
+
+-- only add newline where there isn't one
+-- don't add a trailing newline
+myUnlines :: [Text] -> Text
+myUnlines ts = T.concat $ f ts
+  where
+    f [] = []
+    f [x] = [x]
+    f (x:xs)
+        | Just (_,'\n') <- T.unsnoc x = x : f xs
+    f (x:xs@(y:_))
+        | Just ('\n',_) <- T.uncons y = x : f xs
+    f (x:xs) = x : "\n" : f xs
 
 showDiff :: Text -> Text -> Text
 showDiff src tgt = showDiff' src tgt tgt
@@ -164,7 +177,7 @@ compareSessions docPath lne prompt filters docSls processSls =
     in if docSls' == processSls'
        then []
        else [SilverbaneError docPath lne $
-            "document doesn't match output:\n"
+            "document block doesn't match output:\n"
             <> showDiff' (showSls docSls') (showSls processSls') (showSls processSls)
             {-<> "\n\n------docsls\n"
             <> showT docSls'
@@ -190,7 +203,7 @@ compareSessions docPath lne prompt filters docSls processSls =
         in Reply $ filterf $ T.strip $ r
 
     showSls =
-        T.unlines . map (\case
+        myUnlines . map (\case
             Prompt p -> prompt <> p
             Reply r -> r)
 

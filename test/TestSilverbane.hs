@@ -292,7 +292,7 @@ check variations on prompts which don't output anything
 >>> 1 + 2
 4
 ~~~~
-|], ["document doesn't match output"])
+|], ["document block doesn't match output"])
 
 
         ,("testfiles/session-relative-dir", [R.r|
@@ -460,7 +460,7 @@ $ python3
 >>> 3 + 4
 8
 ~~~~
-|], ["document doesn't match output"])
+|], ["document block doesn't match output"])
 
 
     --------------------------------------
@@ -535,7 +535,7 @@ $ python3
 This is an example, my random = 0.12341234123412345, more stuff1
 ~~~~
 
-|], ["document doesn't match output"])
+|], ["document block doesn't match output"])
 
 
     ]
